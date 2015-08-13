@@ -15,8 +15,15 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import pbr.version
 
+POWER_ON = 'power on'
+""" Node is powered on. """
 
-__version__ = pbr.version.VersionInfo(
-    'python-oneviewclient').version_string()
+POWER_OFF = 'power off'
+""" Node is powered off. """
+
+REBOOT = 'rebooting'
+""" Node is rebooting. """
+
+ERROR = 'error'
+""" An error occurred during node processing. """
