@@ -15,8 +15,18 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import pbr.version
+
+# Power states on OneView
+ONEVIEW_POWER_ON = 'On'
+
+ONEVIEW_POWER_OFF = 'Off'
+
+ONEVIEW_POWERING_ON = 'PoweringOn'
+
+ONEVIEW_POWERING_OFF = 'PoweringOff'
+
+ONEVIEW_RESETTING = 'Resetting'
 
 
-__version__ = pbr.version.VersionInfo(
-    'python-oneviewclient').version_string()
+# Error states
+ONEVIEW_ERROR = 'error'
