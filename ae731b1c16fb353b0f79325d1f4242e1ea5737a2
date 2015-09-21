@@ -1,0 +1,10 @@
+Verified+2: Jenkins
+Code-Review+2: Thiago Paiva Brito <thiagop@lsd.ufcg.edu.br>
+Code-Review+2: Gabriel Bezerra <gabrielb@lsd.ufcg.edu.br>
+Workflow+1: Gabriel Bezerra <gabrielb@lsd.ufcg.edu.br>
+Code-Review+1: venkatamahesh <venkatamaheshkotha@gmail.com>
+Submitted-by: Jenkins
+Submitted-at: Mon, 21 Sep 2015 19:39:35 +0000
+Reviewed-on: https://review.openstack.org/225822
+Project: openstack/python-oneviewclient
+Branch: refs/heads/master
