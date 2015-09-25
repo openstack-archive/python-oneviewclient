@@ -60,6 +60,11 @@ class Client(object):
         return response.json().get('sessionID')
 
     def _authenticate(self):
+        if self.manager_url in ("", None):
+            raise exceptions.OneViewConnectionError(
+                "Can't connect to OneView: missing 'manager_url' from "
+                "Ironic configuration file")
+
         url = '%s/rest/login-sessions' % self.manager_url
         body = {
             'userName': self.username,
@@ -101,7 +106,7 @@ class Client(object):
     def _is_oneview_version_compatible(self):
         versions = self.get_oneview_version()
         v = SUPPORTED_ONEVIEW_VERSION
-        min_version_compatible = versions.get('minimumVersion') <= v
+        min_version_compatible = versions.get("minimumVersion") <= v
         max_version_compatible = versions.get("currentVersion") >= v
         return min_version_compatible and max_version_compatible
 
@@ -473,7 +478,9 @@ def _check_request_status(response):
     repeat = False
     status = response.status_code
 
-    if status == 404:
+    if status == 401:
+        raise exceptions.OneViewNotAuthorizedException()
+    elif status == 404:
         raise exceptions.OneViewResourceNotFoundError()
     elif status in (409,):
         time.sleep(10)
