@@ -75,7 +75,7 @@ class OneViewClientAuthTestCase(unittest.TestCase):
     @mock.patch.object(requests, 'post')
     def test_authenticate_invalid_credentials(self, mock_post):
         response = mock_post.return_value
-        response.status_code = http_client.UNAUTHORIZED
+        response.status_code = http_client.BAD_REQUEST
         mock_post.return_value = response
 
         self.assertRaises(
@@ -391,7 +391,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
         exc_expected_msg = (
             "Node memory_mb is inconsistent with OneView's server"
-            " hardware /any_uri memoryMb. Node validation failed."
+            " hardware /any_uri memoryMb."
         )
 
         oneview_client = client.Client(self.manager_url,
@@ -424,7 +424,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
         exc_expected_msg = (
             "Node cpus is inconsistent with OneView's server"
-            " hardware /any_uri cpus. Node validation failed."
+            " hardware /any_uri cpus."
         )
 
         oneview_client = client.Client(self.manager_url,
@@ -455,7 +455,6 @@ class OneViewClientTestCase(unittest.TestCase):
         exc_expected_msg = (
             "Node server_hardware_type_uri is inconsistent with"
             " OneView's server hardware /any_serveruri serverHardwareTypeUri."
-            " Node validation failed."
         )
 
         oneview_client = client.Client(self.manager_url,
@@ -481,7 +480,6 @@ class OneViewClientTestCase(unittest.TestCase):
         exc_expected_msg = (
             "Node enclosure_group_uri is inconsistent with"
             " OneView's server hardware /any_uri serverGroupUri."
-            " Node validation failed."
         )
 
         oneview_client = client.Client(self.manager_url,
@@ -510,7 +508,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
         exc_expected_msg = (
             "The ports of the node are not compatible with its"
-            " server profile /anyuri. Node validation failed."
+            " server profile /anyuri."
         )
 
         oneview_client = client.Client(self.manager_url,
@@ -541,7 +539,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
         exc_expected_msg = (
             "No primary boot connection configured for server profile"
-            " /anyuri Node validation failed."
+            " /anyuri."
         )
 
         oneview_client = client.Client(self.manager_url,
@@ -578,7 +576,7 @@ class OneViewClientTestCase(unittest.TestCase):
         exc_expected_msg = (
             "Server profile template /profile_uri serverHardwareTypeUri is"
             " inconsistent with server hardware /any_uri"
-            " serverHardwareTypeUri. Node validation failed."
+            " serverHardwareTypeUri."
         )
 
         oneview_client = client.Client(self.manager_url,
@@ -613,7 +611,7 @@ class OneViewClientTestCase(unittest.TestCase):
         exc_expected_msg = (
             "Server profile template /profile_uri enclosureGroupUri is"
             " inconsistent with server hardware /any_uri"
-            " serverGroupUri. Node validation failed."
+            " serverGroupUri."
         )
 
         oneview_client = client.Client(self.manager_url,
