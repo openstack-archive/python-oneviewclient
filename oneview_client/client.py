@@ -55,11 +55,19 @@ class Client(object):
 
         self.session_id = self.get_session()
 
+    def verify_credentials(self):
+        return self._authenticate()
+
     def get_session(self):
         response = self._authenticate()
         return response.json().get('sessionID')
 
     def _authenticate(self):
+        if self.manager_url in ("", None):
+            raise exceptions.OneViewConnectionError(
+                "Can't connect to OneView: 'manager_url' configuration"
+                "parameter is blank")
+
         url = '%s/rest/login-sessions' % self.manager_url
         body = {
             'userName': self.username,
@@ -76,7 +84,7 @@ class Client(object):
                           headers=headers,
                           verify=verify_ssl)
 
-        if r.status_code == 401:
+        if r.status_code == 400:
             raise exceptions.OneViewNotAuthorizedException()
         else:
             return r
@@ -101,7 +109,7 @@ class Client(object):
     def _is_oneview_version_compatible(self):
         versions = self.get_oneview_version()
         v = SUPPORTED_ONEVIEW_VERSION
-        min_version_compatible = versions.get('minimumVersion') <= v
+        min_version_compatible = versions.get("minimumVersion") <= v
         max_version_compatible = versions.get("currentVersion") >= v
         return min_version_compatible and max_version_compatible
 
@@ -270,15 +278,15 @@ class Client(object):
         if server_hardware_memorymb != node_memorymb:
             message = (
                 "Node memory_mb is inconsistent with OneView's"
-                " server hardware %(server_hardware_uri)s memoryMb. Node"
-                " validation failed." % {'server_hardware_uri': node_sh_uri}
+                " server hardware %(server_hardware_uri)s memoryMb."
+                % {'server_hardware_uri': node_sh_uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
         elif server_hardware_cpus != node_cpus:
             message = (
                 "Node cpus is inconsistent with OneView's"
-                " server hardware %(server_hardware_uri)s cpus. Node"
-                " validation failed." % {'server_hardware_uri': node_sh_uri}
+                " server hardware %(server_hardware_uri)s cpus."
+                % {'server_hardware_uri': node_sh_uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
 
@@ -291,7 +299,7 @@ class Client(object):
             message = (
                 "Node server_hardware_type_uri is inconsistent"
                 " with OneView's server hardware %(server_hardware_uri)s"
-                " serverHardwareTypeUri. Node validation failed." %
+                " serverHardwareTypeUri." %
                 {'server_hardware_uri': node_info.get('server_hardware_uri')}
             )
             raise exceptions.OneViewInconsistentResource(message)
@@ -309,7 +317,7 @@ class Client(object):
                 message = (
                     "Node enclosure_group_uri is inconsistent"
                     " with OneView's server hardware %(server_hardware_uri)s"
-                    " serverGroupUri. Node validation failed." %
+                    " serverGroupUri." %
                     {'server_hardware_uri': node_info.
                      get('server_hardware_uri')}
                 )
@@ -330,7 +338,7 @@ class Client(object):
         if primary_boot_connection is None:
             message = (
                 "No primary boot connection configured for server profile"
-                " %s Node validation failed." % server_profile_json.get('uri')
+                " %s." % server_profile_json.get('uri')
             )
             raise exceptions.OneViewInconsistentResource(message)
 
@@ -338,15 +346,17 @@ class Client(object):
 
         is_mac_address_compatible = True
         for port in ports:
-            if port.__dict__.get('_obj_address').lower() != \
+            port_address = port.__dict__.get('_obj_address')
+            if port_address is None:
+                port_address = port.__dict__.get('_address')
+            if port_address.lower() != \
                server_profile_mac.lower():
                 is_mac_address_compatible = False
 
         if (not is_mac_address_compatible) or len(ports) == 0:
             message = (
                 "The ports of the node are not compatible with its"
-                " server profile %(server_profile_uri)s. Node validation"
-                " failed." %
+                " server profile %(server_profile_uri)s." %
                 {'server_profile_uri': server_profile_json.get('uri')}
             )
             raise exceptions.OneViewInconsistentResource(message)
@@ -372,7 +382,7 @@ class Client(object):
             message = (
                 "Server profile template %(spt_uri)s serverHardwareTypeUri is"
                 " inconsistent with server hardware %(server_hardware_uri)s"
-                " serverHardwareTypeUri. Node validation failed." %
+                " serverHardwareTypeUri." %
                 {'spt_uri': node_spt_uri,
                  'server_hardware_uri': node_info.get('server_hardware_uri')}
             )
@@ -381,7 +391,7 @@ class Client(object):
             message = (
                 "Server profile template %(spt_uri)s enclosureGroupUri is"
                 " inconsistent with server hardware %(server_hardware_uri)s"
-                " serverGroupUri. Node validation failed." %
+                " serverGroupUri." %
                 {'spt_uri': node_spt_uri,
                  'server_hardware_uri': node_info.get('server_hardware_uri')}
             )
@@ -473,7 +483,9 @@ def _check_request_status(response):
     repeat = False
     status = response.status_code
 
-    if status == 404:
+    if status == 401:
+        raise exceptions.OneViewNotAuthorizedException()
+    elif status == 404:
         raise exceptions.OneViewResourceNotFoundError()
     elif status in (409,):
         time.sleep(10)
