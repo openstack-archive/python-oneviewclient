@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: Thiago Paiva Brito <thiagop@lsd.ufcg.edu.br>
+Workflow+1: Thiago Paiva Brito <thiagop@lsd.ufcg.edu.br>
+Submitted-by: Jenkins
+Submitted-at: Fri, 02 Oct 2015 13:38:16 +0000
+Reviewed-on: https://review.openstack.org/227890
+Project: openstack/python-oneviewclient
+Branch: refs/heads/master
