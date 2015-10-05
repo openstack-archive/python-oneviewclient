@@ -1,4 +1,3 @@
-# -*- encoding: utf-8 -*-
 #
 # (c) Copyright 2015 Hewlett Packard Enterprise Development LP
 # Copyright 2015 Universidade Federal de Campina Grande
@@ -22,8 +21,8 @@ import requests
 import retrying
 
 from oneview_client import exceptions
+from oneview_client.models.server_hardware import ServerHardware
 from oneview_client import states
-
 
 SUPPORTED_ONEVIEW_VERSION = 200
 
@@ -83,7 +82,6 @@ class Client(object):
                           data=json.dumps(body),
                           headers=headers,
                           verify=verify_ssl)
-
         if r.status_code == 400:
             raise exceptions.OneViewNotAuthorizedException()
         else:
@@ -130,9 +128,9 @@ class Client(object):
     # --- Power Driver ---
     def get_node_power_state(self, node_info):
         server_hardware_json = self.get_server_hardware(node_info)
-        power_state = server_hardware_json.get('powerState')
-
-        return power_state
+        server_hardware = ServerHardware().get_instance_from_json(
+            server_hardware_json)
+        return server_hardware.power_state
 
     def power_on(self, node_info):
         if self.get_node_power_state(node_info) == states.ONEVIEW_POWER_ON:
