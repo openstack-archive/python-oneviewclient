@@ -22,6 +22,8 @@ import requests
 import retrying
 
 from oneview_client import exceptions
+from oneview_client.models.server_hardware import ServerHardware
+from oneview_client.models.server_profile import ServerProfile
 from oneview_client import states
 
 
@@ -83,7 +85,6 @@ class Client(object):
                           data=json.dumps(body),
                           headers=headers,
                           verify=verify_ssl)
-
         if r.status_code == 400:
             raise exceptions.OneViewNotAuthorizedException()
         else:
@@ -129,10 +130,7 @@ class Client(object):
 
     # --- Power Driver ---
     def get_node_power_state(self, node_info):
-        server_hardware_json = self.get_server_hardware(node_info)
-        power_state = server_hardware_json.get('powerState')
-
-        return power_state
+        return self.get_server_hardware(node_info).power_state
 
     def power_on(self, node_info):
         if self.get_node_power_state(node_info) == states.ONEVIEW_POWER_ON:
@@ -186,12 +184,12 @@ class Client(object):
         if server_hardware_json.get("uri") is None:
             message = "OneView Server Hardware resource not found."
             raise exceptions.OneViewResourceNotFoundError(message)
-
-        return server_hardware_json
+        return ServerHardware().get_instance_from_json(server_hardware_json)
 
     def get_server_profile_from_hardware(self, node_info):
-        server_hardware_json = self.get_server_hardware(node_info)
-        server_profile_uri = server_hardware_json.get("serverProfileUri")
+        server_hardware = self.get_server_hardware(node_info)
+        server_profile_uri = server_hardware.server_profile_uri
+
         if server_profile_uri is None:
             message = (
                 "There is no server profile assigned to"
@@ -203,11 +201,14 @@ class Client(object):
         server_profile_json = self._prepare_and_do_request(
             uri=server_profile_uri
         )
-        if server_profile_json.get("uri") is None:
+        server_profile = (
+            ServerProfile().get_instance_from_json(server_profile_json))
+
+        if server_profile.uri is None:
             message = "OneView Server Profile resource not found."
             raise exceptions.OneViewResourceNotFoundError(message)
 
-        return server_profile_json
+        return server_profile
 
     def get_server_profile_template(self, node_info):
         server_profile_template_uri = (
@@ -224,19 +225,18 @@ class Client(object):
         return server_profile_template_json
 
     def get_boot_order(self, node_info):
-        server_profile_json = self.get_server_profile_from_hardware(
+        server_profile = self.get_server_profile_from_hardware(
             node_info
         )
-        return server_profile_json.get("boot").get("order")
+        return server_profile.boot.get("order")
 
-    def _make_boot_order_body(self, server_profile_dict, order):
-        manageBoot = server_profile_dict.get("boot").get("manageBoot")
-        server_profile_dict["boot"] = {
+    def _update_boot_order(self, server_profile, order):
+        manageBoot = server_profile.boot.get("manageBoot")
+        server_profile.boot = {
             "manageBoot": manageBoot,
             "order": order
         }
-
-        return server_profile_dict
+        return server_profile
 
     def set_boot_device(self, node_info, new_primary_boot_device):
         boot_order = self.get_boot_order(node_info)
@@ -249,16 +249,19 @@ class Client(object):
 
         boot_order.insert(0, new_primary_boot_device)
 
-        server_profile_dict = self.get_server_profile_from_hardware(
+        server_profile = self.get_server_profile_from_hardware(
             node_info
         )
-        boot_order_body = self._make_boot_order_body(
-            server_profile_dict,
+
+        server_profile_updated = self._update_boot_order(
+            server_profile,
             boot_order
         )
 
+        boot_order_dict = server_profile_updated.parse_to_oneview_dict()
+
         task = self._prepare_and_do_request(
-            uri=server_profile_dict.get('uri'), body=boot_order_body,
+            uri=server_profile.uri, body=boot_order_dict,
             request_type=PUT_REQUEST_TYPE
         )
         try:

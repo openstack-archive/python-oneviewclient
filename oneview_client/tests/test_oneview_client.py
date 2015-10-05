@@ -25,8 +25,9 @@ import unittest
 
 from oneview_client import client
 from oneview_client import exceptions
+from oneview_client.models.server_hardware import ServerHardware
+#from oneview_client.models.server_profile import ServerProfile
 from oneview_client import states
-
 
 PROPERTIES_DICT = {"cpu_arch": "x86_64",
                    "cpus": "8",
@@ -313,7 +314,9 @@ class OneViewClientTestCase(unittest.TestCase):
         driver_info = {}
         new_first_boot_device = "any_boot_device"
         mock_get_boot_order.return_value = []
-        mock_get_server_hardware.return_value = {}
+        server_hardware = ServerHardware()
+        setattr(server_hardware, 'server_profile_uri', None)
+        mock_get_server_hardware.return_value = server_hardware
 
         oneview_client = client.Client(self.manager_url,
                                        self.username,
@@ -325,8 +328,12 @@ class OneViewClientTestCase(unittest.TestCase):
             driver_info,
             new_first_boot_device
         )
-
-        mock_get_server_hardware.return_value = {"serverProfileUri": "any_uri"}
+        setattr(
+            server_hardware,
+            'server_profile_uri',
+            'any_uri'
+        )
+        mock_get_server_hardware.return_value = server_hardware
         mock__prepare_do_request.return_value = {}
 
         self.assertRaises(
