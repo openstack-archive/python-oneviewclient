@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-#
 # (c) Copyright 2015 Hewlett Packard Enterprise Development LP
 # Copyright 2015 Universidade Federal de Campina Grande
 #
@@ -22,6 +20,9 @@ import requests
 import retrying
 
 from oneview_client import exceptions
+from oneview_client.models import ServerHardware
+from oneview_client.models import ServerProfile
+from oneview_client.models import ServerProfileTemplate
 from oneview_client import states
 
 
@@ -83,7 +84,6 @@ class Client(object):
                           data=json.dumps(body),
                           headers=headers,
                           verify=verify_ssl)
-
         if r.status_code == 400:
             raise exceptions.OneViewNotAuthorizedException()
         else:
@@ -129,10 +129,7 @@ class Client(object):
 
     # --- Power Driver ---
     def get_node_power_state(self, node_info):
-        server_hardware_json = self.get_server_hardware(node_info)
-        power_state = server_hardware_json.get('powerState')
-
-        return power_state
+        return self.get_server_hardware(node_info).power_state
 
     def power_on(self, node_info):
         if self.get_node_power_state(node_info) == states.ONEVIEW_POWER_ON:
@@ -186,12 +183,12 @@ class Client(object):
         if server_hardware_json.get("uri") is None:
             message = "OneView Server Hardware resource not found."
             raise exceptions.OneViewResourceNotFoundError(message)
-
-        return server_hardware_json
+        return ServerHardware().get_instance_from_json(server_hardware_json)
 
     def get_server_profile_from_hardware(self, node_info):
-        server_hardware_json = self.get_server_hardware(node_info)
-        server_profile_uri = server_hardware_json.get("serverProfileUri")
+        server_hardware = self.get_server_hardware(node_info)
+        server_profile_uri = server_hardware.server_profile_uri
+
         if server_profile_uri is None:
             message = (
                 "There is no server profile assigned to"
@@ -203,40 +200,40 @@ class Client(object):
         server_profile_json = self._prepare_and_do_request(
             uri=server_profile_uri
         )
-        if server_profile_json.get("uri") is None:
+
+        if server_profile_json.get('uri') is None:
             message = "OneView Server Profile resource not found."
             raise exceptions.OneViewResourceNotFoundError(message)
 
-        return server_profile_json
+        return ServerProfile().get_instance_from_json(server_profile_json)
 
     def get_server_profile_template(self, node_info):
         server_profile_template_uri = (
             node_info.get('server_profile_template_uri')
         )
-        server_profile_template_json = self._prepare_and_do_request(
-            uri=server_profile_template_uri, request_type=GET_REQUEST_TYPE
+        spt_json = self._prepare_and_do_request(
+            uri=server_profile_template_uri
         )
 
-        if server_profile_template_json.get("uri") is None:
+        if spt_json.get("uri") is None:
             message = "OneView Server Profile Template resource not found."
             raise exceptions.OneViewResourceNotFoundError(message)
 
-        return server_profile_template_json
+        return ServerProfileTemplate().get_instance_from_json(spt_json)
 
     def get_boot_order(self, node_info):
-        server_profile_json = self.get_server_profile_from_hardware(
+        server_profile = self.get_server_profile_from_hardware(
             node_info
         )
-        return server_profile_json.get("boot").get("order")
+        return server_profile.boot.get("order")
 
-    def _make_boot_order_body(self, server_profile_dict, order):
-        manageBoot = server_profile_dict.get("boot").get("manageBoot")
-        server_profile_dict["boot"] = {
+    def _update_boot_order(self, server_profile, order):
+        manageBoot = server_profile.boot.get("manageBoot")
+        server_profile.boot = {
             "manageBoot": manageBoot,
             "order": order
         }
-
-        return server_profile_dict
+        return server_profile
 
     def set_boot_device(self, node_info, new_primary_boot_device):
         boot_order = self.get_boot_order(node_info)
@@ -249,16 +246,19 @@ class Client(object):
 
         boot_order.insert(0, new_primary_boot_device)
 
-        server_profile_dict = self.get_server_profile_from_hardware(
+        server_profile = self.get_server_profile_from_hardware(
             node_info
         )
-        boot_order_body = self._make_boot_order_body(
-            server_profile_dict,
+
+        server_profile_updated = self._update_boot_order(
+            server_profile,
             boot_order
         )
 
+        boot_order_dict = server_profile_updated.parse_to_oneview_dict()
+
         task = self._prepare_and_do_request(
-            uri=server_profile_dict.get('uri'), body=boot_order_body,
+            uri=server_profile.uri, body=boot_order_dict,
             request_type=PUT_REQUEST_TYPE
         )
         try:
@@ -271,11 +271,10 @@ class Client(object):
         self, node_info, node_memorymb, node_cpus
     ):
         node_sh_uri = node_info.get('server_hardware_uri')
-        server_hardware_json = self.get_server_hardware(node_info)
-        server_hardware_memorymb = server_hardware_json.get('memoryMb')
-        server_hardware_cpus = (server_hardware_json.get('processorCoreCount')
-                                * server_hardware_json.get('processorCount'))
-        if server_hardware_memorymb != node_memorymb:
+        server_hardware = self.get_server_hardware(node_info)
+        server_hardware_cpus = (server_hardware.processor_core_count
+                                * server_hardware.processor_count)
+        if server_hardware.memory_mb != node_memorymb:
             message = (
                 "Node memory_mb is inconsistent with OneView's"
                 " server hardware %(server_hardware_uri)s memoryMb."
@@ -293,7 +292,7 @@ class Client(object):
     def validate_node_server_hardware_type(self, node_info):
         node_sht_uri = node_info.get('server_hardware_type_uri')
         server_hardware = self.get_server_hardware(node_info)
-        server_hardware_sht_uri = server_hardware.get('serverHardwareTypeUri')
+        server_hardware_sht_uri = server_hardware.server_hardware_type_uri
 
         if server_hardware_sht_uri != node_sht_uri:
             message = (
@@ -309,7 +308,7 @@ class Client(object):
 
     def validate_node_enclosure_group(self, node_info):
         server_hardware = self.get_server_hardware(node_info)
-        sh_enclosure_group_uri = server_hardware.get('serverGroupUri')
+        sh_enclosure_group_uri = server_hardware.enclosure_group_uri
         node_enclosure_group_uri = node_info.get('enclosure_group_uri')
 
         if node_enclosure_group_uri is not '':
@@ -326,12 +325,12 @@ class Client(object):
     def is_node_port_mac_compatible_with_server_profile(
         self, node_info, ports
     ):
-        server_profile_json = self.get_server_profile_from_hardware(
+        server_profile = self.get_server_profile_from_hardware(
             node_info
         )
 
         primary_boot_connection = None
-        for connection in server_profile_json.get('connections'):
+        for connection in server_profile.connections:
             boot = connection.get('boot')
             if boot is not None and boot.get('priority') == 'Primary':
                 primary_boot_connection = connection
@@ -339,7 +338,7 @@ class Client(object):
         if primary_boot_connection is None:
             message = (
                 "No primary boot connection configured for server profile"
-                " %s." % server_profile_json.get('uri')
+                " %s." % server_profile.uri
             )
             raise exceptions.OneViewInconsistentResource(message)
 
@@ -358,27 +357,23 @@ class Client(object):
             message = (
                 "The ports of the node are not compatible with its"
                 " server profile %(server_profile_uri)s." %
-                {'server_profile_uri': server_profile_json.get('uri')}
+                {'server_profile_uri': server_profile.uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
 
     def validate_node_server_profile_template(self, node_info):
         node_spt_uri = node_info.get('server_profile_template_uri')
 
-        server_profile_template_json = self.get_server_profile_template(
+        server_profile_template = self.get_server_profile_template(
             node_info
         )
-        spt_server_hardware_type_uri = server_profile_template_json \
-            .get('serverHardwareTypeUri')
-        spt_enclosure_group_uri = server_profile_template_json \
-            .get('enclosureGroupUri')
+        spt_server_hardware_type_uri = server_profile_template \
+            .server_hardware_type_uri
+        spt_enclosure_group_uri = server_profile_template.enclosure_group_uri
 
-        server_hardware_json = self.get_server_hardware(node_info)
-        sh_server_hardware_type_uri = server_hardware_json \
-            .get('serverHardwareTypeUri')
-        sh_enclosure_group_uri_uri = server_hardware_json \
-            .get('serverGroupUri')
-
+        server_hardware = self.get_server_hardware(node_info)
+        sh_server_hardware_type_uri = server_hardware.server_hardware_type_uri
+        sh_enclosure_group_uri_uri = server_hardware.enclosure_group_uri
         if spt_server_hardware_type_uri != sh_server_hardware_type_uri:
             message = (
                 "Server profile template %(spt_uri)s serverHardwareTypeUri is"
