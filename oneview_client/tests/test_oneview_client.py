@@ -27,7 +27,6 @@ from oneview_client import client
 from oneview_client import exceptions
 from oneview_client import states
 
-
 PROPERTIES_DICT = {"cpu_arch": "x86_64",
                    "cpus": "8",
                    "local_gb": "10",
