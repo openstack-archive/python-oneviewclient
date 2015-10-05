@@ -25,8 +25,10 @@ import unittest
 
 from oneview_client import client
 from oneview_client import exceptions
+from oneview_client.models import ServerHardware
+from oneview_client.models import ServerProfile
+from oneview_client.models import ServerProfileTemplate
 from oneview_client import states
-
 
 PROPERTIES_DICT = {"cpu_arch": "x86_64",
                    "cpus": "8",
@@ -320,7 +322,9 @@ class OneViewClientTestCase(unittest.TestCase):
         driver_info = {}
         new_first_boot_device = "any_boot_device"
         mock_get_boot_order.return_value = []
-        mock_get_server_hardware.return_value = {}
+        server_hardware = ServerHardware()
+        setattr(server_hardware, 'server_profile_uri', None)
+        mock_get_server_hardware.return_value = server_hardware
 
         oneview_client = client.Client(self.manager_url,
                                        self.username,
@@ -332,8 +336,12 @@ class OneViewClientTestCase(unittest.TestCase):
             driver_info,
             new_first_boot_device
         )
-
-        mock_get_server_hardware.return_value = {"serverProfileUri": "any_uri"}
+        setattr(
+            server_hardware,
+            'server_profile_uri',
+            'any_uri'
+        )
+        mock_get_server_hardware.return_value = server_hardware
         mock__prepare_do_request.return_value = {}
 
         self.assertRaises(
@@ -385,11 +393,13 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_server_hardware_inconsistent_memorymb_value(
         self, mock_get_server_hardware, mock__authenticate
     ):
-        mock_get_server_hardware.return_value = {
-            "memoryMb": 1,
-            "processorCoreCount": 1,
-            "processorCount": 1,
-        }
+        server_hardware_mock = ServerHardware()
+        setattr(server_hardware_mock, "processor_core_count", 1)
+        setattr(server_hardware_mock, "processor_count", 1)
+        setattr(server_hardware_mock, "memory_mb", 1)
+
+        mock_get_server_hardware.return_value = server_hardware_mock
+
         driver_info = {
             "server_hardware_uri": "/any_uri",
         }
@@ -418,11 +428,13 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_server_hardware_inconsistent_cpus_value(
         self, mock_get_server_hardware, mock__authenticate
     ):
-        mock_get_server_hardware.return_value = {
-            "memoryMb": 1,
-            "processorCoreCount": 2,
-            "processorCount": 3,
-        }
+        server_hardware_mock = ServerHardware()
+        setattr(server_hardware_mock, "processor_core_count", 2)
+        setattr(server_hardware_mock, "processor_count", 3)
+        setattr(server_hardware_mock, "memory_mb", 1)
+
+        mock_get_server_hardware.return_value = server_hardware_mock
+
         driver_info = {
             "server_hardware_uri": "/any_uri",
         }
@@ -451,9 +463,13 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_server_hardware_type_inconsistent_sht_uri(
         self, mock_get_server_hardware, mock__authenticate
     ):
-        mock_get_server_hardware.return_value = {
-            "serverHardwareTypeUri": "/incosistent_uri"
-        }
+        server_hardware_mock = ServerHardware()
+        setattr(server_hardware_mock,
+                "server_hardware_type_uri",
+                "/incosistent_uri")
+
+        mock_get_server_hardware.return_value = server_hardware_mock
+
         driver_info = {
             "server_hardware_uri": "/any_serveruri",
             "server_hardware_type_uri": "/any_uri",
@@ -505,13 +521,17 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_check_node_port_mac_incompatible_with_server_profile(
         self, mock_server_profile, mock__authenticate
     ):
-        mock_server_profile.return_value = {
-            "uri": "/anyuri",
-            "connections": [
-                {'boot': {'priority': u'Primary'},
-                 'mac': u'56:88:7B:C0:00:0B'}
-            ]
-        }
+        server_profile_mock = ServerProfile()
+        setattr(server_profile_mock, "uri", "/anyuri")
+        server_profile_mock_connections = [
+            {'boot': {'priority': u'Primary'},
+             'mac': u'56:88:7B:C0:00:0B'}
+        ]
+        setattr(server_profile_mock,
+                "connections",
+                server_profile_mock_connections)
+
+        mock_server_profile.return_value = server_profile_mock
 
         exc_expected_msg = (
             "The ports of the node are not compatible with its"
@@ -536,13 +556,17 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_check_node_port_mac_no_primary_boot_connection(
         self, mock_server_profile, mock__authenticate
     ):
-        mock_server_profile.return_value = {
-            "uri": "/anyuri",
-            "connections": [
-                {'boot': {'priority': u'NotBootable'},
-                 'mac': u'56:88:7B:C0:00:0B'}
-            ]
-        }
+        server_profile_mock = ServerProfile()
+        setattr(server_profile_mock, "uri", "/anyuri")
+        server_profile_mock_connections = [
+            {'boot': {'priority': u'NotBootable'},
+             'mac': u'56:88:7B:C0:00:0B'}
+        ]
+        setattr(server_profile_mock,
+                "connections",
+                server_profile_mock_connections)
+
+        mock_server_profile.return_value = server_profile_mock
 
         exc_expected_msg = (
             "No primary boot connection configured for server profile"
@@ -568,12 +592,22 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_server_profile_template_inconsistent_sht(
         self, mock_server_hardware, mock_server_template, mock__authenticate
     ):
-        mock_server_hardware.return_value = {
-            'serverHardwareTypeUri': '/sht_uri',
-            'serverGroupUri': 'eg_uri'}
-        mock_server_template.return_value = {
-            'serverHardwareTypeUri': '/inconsistent_uri',
-            'enclosureGroupUri': '/inconsistent_uri'}
+        server_hardware_mock = ServerHardware()
+        setattr(server_hardware_mock,
+                "server_hardware_type_uri",
+                "/sht_uri")
+        setattr(server_hardware_mock, "enclosure_group_uri", "eg_uri")
+
+        server_profile_template_mock = ServerProfileTemplate()
+        setattr(server_profile_template_mock,
+                "server_hardware_type_uri",
+                "/inconsistent_uri")
+        setattr(server_profile_template_mock,
+                "enclosure_group_uri",
+                "/inconsistent_uri")
+
+        mock_server_hardware.return_value = server_hardware_mock
+        mock_server_template.return_value = server_profile_template_mock
 
         driver_info = {
             "server_hardware_uri": "/any_uri",
@@ -603,12 +637,22 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_server_profile_template_inconsistent_eg(
         self, mock_server_hardware, mock_server_template, mock__authenticate
     ):
-        mock_server_hardware.return_value = {
-            'serverHardwareTypeUri': '/sht_uri',
-            'serverGroupUri': 'eg_uri'}
-        mock_server_template.return_value = {
-            'serverHardwareTypeUri': '/sht_uri',
-            'enclosureGroupUri': '/inconsistent_uri'}
+        server_hardware_mock = ServerHardware()
+        setattr(server_hardware_mock,
+                "server_hardware_type_uri",
+                "/sht_uri")
+        setattr(server_hardware_mock, "enclosure_group_uri", "eg_uri")
+
+        server_profile_template_mock = ServerProfileTemplate()
+        setattr(server_profile_template_mock,
+                "server_hardware_type_uri",
+                "/sht_uri")
+        setattr(server_profile_template_mock,
+                "enclosure_group_uri",
+                "/inconsistent_uri")
+
+        mock_server_hardware.return_value = server_hardware_mock
+        mock_server_template.return_value = server_profile_template_mock
 
         driver_info = {
             "server_hardware_uri": "/any_uri",
@@ -666,9 +710,15 @@ class OneViewClientTestCase(unittest.TestCase):
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
-        mock_get_server_profile_from_hardware.return_value = (
-            {'connections': [{'boot': {'priority': 'Primary'},
-                              'mac': 'AA:BB:CC:DD:EE:FF'}]})
+        server_profile_mock = ServerProfile()
+        setattr(
+            server_profile_mock,
+            'connections',
+            [{'boot': {'priority': 'Primary'}, 'mac': 'AA:BB:CC:DD:EE:FF'}]
+        )
+        setattr(server_profile_mock, 'uri', 'sp_uri')
+        mock_get_server_profile_from_hardware.return_value = \
+            server_profile_mock
 
         port = TestablePort('AA:BB:CC:DD:EE:FF')
         node_info = None
@@ -678,33 +728,48 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
     def test_is_mac_compatible_with_server_profile_with_no_ports(
-        self, mock_get_server_profile_from_hardware, mock__authenticate):
+            self, mock_get_server_profile_from_hardware, mock__authenticate):
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
-        mock_get_server_profile_from_hardware.return_value = (
-            {'connections': [{'boot': {'priority': 'Primary'},
-                              'mac': 'AA:BB:CC:DD:EE:FF'}]})
+        server_profile_mock = ServerProfile()
+        setattr(
+            server_profile_mock,
+            'connections',
+            [{'boot': {'priority': 'Primary'}, 'mac': 'AA:BB:CC:DD:EE:FF'}]
+        )
+        setattr(server_profile_mock, 'uri', 'sp_uri')
+        mock_get_server_profile_from_hardware.return_value = \
+            server_profile_mock
 
         node_info = None
         ports = []
-        with self.assertRaises(exceptions.OneViewInconsistentResource):
-            oneview_client.is_node_port_mac_compatible_with_server_profile(
-                node_info, ports)
+        self.assertRaises(
+            exceptions.OneViewInconsistentResource,
+            oneview_client.is_node_port_mac_compatible_with_server_profile,
+            node_info,
+            ports
+        )
 
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
     def test_is_mac_compatible_with_server_profile_without_boot_in_connection(
-        self, mock_get_server_profile_from_hardware, mock__authenticate):
+            self, mock_get_server_profile_from_hardware, mock__authenticate):
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
-        mock_get_server_profile_from_hardware.return_value = {'connections':
-                                                              [{}]}
+        server_profile_mock = ServerProfile()
+        setattr(server_profile_mock, 'connections', [{}])
+        setattr(server_profile_mock, 'uri', 'sp_uri')
+        mock_get_server_profile_from_hardware.return_value = \
+            server_profile_mock
         node_info = None
         ports = None
-        with self.assertRaises(exceptions.OneViewInconsistentResource):
-            oneview_client.is_node_port_mac_compatible_with_server_profile(
-                node_info, ports)
+        self.assertRaises(
+            exceptions.OneViewInconsistentResource,
+            oneview_client.is_node_port_mac_compatible_with_server_profile,
+            node_info,
+            ports
+        )
 
 if __name__ == '__main__':
     unittest.main()
