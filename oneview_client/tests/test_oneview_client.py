@@ -652,3 +652,20 @@ class OneViewClientTestCase(unittest.TestCase):
             exceptions.IncompatibleOneViewAPIVersion,
             oneview_client.verify_oneview_version
         )
+
+    @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
+    def test_is_mac_compatible_with_server_profile_without_boot_in_connection(
+        self, mock_get_server_profile_from_hardware, mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        mock_get_server_profile_from_hardware.return_value = {'connections':
+                                                              [{}]}
+        node_info = None
+        ports = None
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            oneview_client.is_node_port_mac_compatible_with_server_profile(
+                node_info, ports)
+
+if __name__ == '__main__':
+    unittest.main()
