@@ -332,7 +332,8 @@ class Client(object):
 
         primary_boot_connection = None
         for connection in server_profile_json.get('connections'):
-            if connection.get('boot').get('priority') == 'Primary':
+            boot = connection.get('boot')
+            if boot is not None and boot.get('priority') == 'Primary':
                 primary_boot_connection = connection
 
         if primary_boot_connection is None:
