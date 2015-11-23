@@ -39,6 +39,13 @@ DRIVER_INFO_DICT = {'server_hardware_uri': 'fake_sh_uri',
                     'server_profile_template_uri': 'fake_spt_uri'}
 
 
+class TestablePort(object):
+
+    def __init__(self, obj_address):
+        self.obj_address = obj_address
+        self._obj_address = obj_address
+
+
 class OneViewClientAuthTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -652,6 +659,38 @@ class OneViewClientTestCase(unittest.TestCase):
             exceptions.IncompatibleOneViewAPIVersion,
             oneview_client.verify_oneview_version
         )
+
+    @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
+    def test_is_mac_compatible_with_server_profile(
+        self, mock_get_server_profile_from_hardware, mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        mock_get_server_profile_from_hardware.return_value = (
+            {'connections': [{'boot': {'priority': 'Primary'},
+                              'mac': 'AA:BB:CC:DD:EE:FF'}]})
+
+        port = TestablePort('AA:BB:CC:DD:EE:FF')
+        node_info = None
+        ports = [port]
+        oneview_client.is_node_port_mac_compatible_with_server_profile(
+            node_info, ports)
+
+    @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
+    def test_is_mac_compatible_with_server_profile_with_no_ports(
+        self, mock_get_server_profile_from_hardware, mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        mock_get_server_profile_from_hardware.return_value = (
+            {'connections': [{'boot': {'priority': 'Primary'},
+                              'mac': 'AA:BB:CC:DD:EE:FF'}]})
+
+        node_info = None
+        ports = []
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            oneview_client.is_node_port_mac_compatible_with_server_profile(
+                node_info, ports)
 
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
     def test_is_mac_compatible_with_server_profile_without_boot_in_connection(
