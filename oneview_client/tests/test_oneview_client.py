@@ -40,6 +40,132 @@ PROPERTIES_DICT = {"cpu_arch": "x86_64",
 DRIVER_INFO_DICT = {'server_hardware_uri': 'fake_sh_uri',
                     'server_profile_template_uri': 'fake_spt_uri'}
 
+PORT_MAP = {
+    "deviceSlots": [{
+        "deviceName": "HP FlexFabric 10Gb 2-port 554FLB Adapter",
+        "deviceNumber": 9,
+        "location": "Flb",
+        "physicalPorts": [{
+            "interconnectPort": 1,
+            "interconnectUri": ("/rest/interconnects/25352bd0-6a7a-4c1"
+                                "d-abe1-268c306c82b8"),
+            "mac": "D8:9D:67:73:54:00",
+            "physicalInterconnectPort": 1,
+            "physicalInterconnectUri": ("/rest/interconnects/25352bd0-"
+                                        "6a7a-4c1d-abe1-268c306c82b8"),
+            "portNumber": 1,
+            "type": "Ethernet",
+            "virtualPorts": [{
+                "currentAllocatedVirtualFunctionCount": (-1),
+                "mac": "EA:EF:C7:70:00:00",
+                "portFunction": "a",
+                "portNumber": 1,
+                "wwnn": None,
+                "wwpn": None
+            }, {
+                "currentAllocatedVirtualFunctionCount": (-1),
+                "mac": "D8:9D:67:73:54:01",
+                "portFunction": "b",
+                "portNumber": 2,
+                "wwnn": "20:00:D8:9D:67:73:54:01",
+                "wwpn": "10:00:D8:9D:67:73:54:01"
+            }, {
+                "currentAllocatedVirtualFunctionCount": (-1),
+                "mac": "D8:9D:67:73:54:02",
+                "portFunction": "c",
+                "portNumber": 3,
+                "wwnn": None,
+                "wwpn": None
+            }, {
+                "currentAllocatedVirtualFunctionCount": (-1),
+                "mac": "D8:9D:67:73:54:03",
+                "portFunction": "d",
+                "portNumber": 4,
+                "wwnn": None,
+                "wwpn": None
+            }],
+            "wwn": None
+        }, {
+            "interconnectPort": 1,
+            "interconnectUri": ("/rest/interconnects/e005478c-8b50-45c"
+                                "7-8aae-7239df039078"),
+            "mac": "D8:9D:67:73:54:04",
+            "physicalInterconnectPort": 1,
+            "physicalInterconnectUri": ("/rest/interconnects/e005478c-"
+                                        "8b50-45cf-8aae-7239df039078"),
+            "portNumber": 2,
+            "type": "Ethernet",
+            "virtualPorts": [{
+                "currentAllocatedVirtualFunctionCount": (-1),
+                "mac": "D8:9D:67:73:54:04",
+                "portFunction": "a",
+                "portNumber": 1,
+                "wwnn": None,
+                "wwpn": None
+            }, {
+                "currentAllocatedVirtualFunctionCount": (-1),
+                "mac": "D8:9D:67:73:54:05",
+                "portFunction": "b",
+                "portNumber": 2,
+                "wwnn": "20:00:D8:9D:67:73:54:05",
+                "wwpn": "10:00:D8:9D:67:73:54:05"
+            }, {
+                "currentAllocatedVirtualFunctionCount": (-1),
+                "mac": "D8:9D:67:73:54:06",
+                "portFunction": "c",
+                "portNumber": 3,
+                "wwnn": None,
+                "wwpn": None
+            }, {
+                "currentAllocatedVirtualFunctionCount": (-1),
+                "mac": "D8:9D:67:73:54:07",
+                "portFunction": "d",
+                "portNumber": 4,
+                "wwnn": None,
+                "wwpn": None
+            }],
+            "wwn": None
+        }],
+        "slotNumber": 1
+    }, {
+        "deviceName": "HP LPe1205A 8Gb FC HBA for BladeSystem c-Class",
+        "deviceNumber": 1,
+        "location": "Mezz",
+        "physicalPorts": [{
+            "interconnectPort": 1,
+            "interconnectUri": ("/rest/interconnects/efb60cdf-caf4-438"
+                                "2-8419-7ac969504034"),
+            "mac": None,
+            "physicalInterconnectPort": 1,
+            "physicalInterconnectUri": ("/rest/interconnects/efb60cdf-"
+                                        "caf4-4382-8419-7ac969504034"),
+            "portNumber": 1,
+            "type": "FibreChannel",
+            "virtualPorts": [],
+            "wwn": "10:00:38:EA:A7:D3:E4:40"
+        }, {
+            "interconnectPort": 1,
+            "interconnectUri": ("/rest/interconnects/e4607445-0571-484"
+                                "e-8629-8e01bdd1ea9f"),
+            "mac": None,
+            "physicalInterconnectPort": 1,
+            "physicalInterconnectUri": ("/rest/interconnects/e4607445-"
+                                        "0571-484e-8629-8e01bdd1ea9f"),
+            "portNumber": 2,
+            "type": "FibreChannel",
+            "virtualPorts": [],
+            "wwn": "10:00:38:EA:A7:D3:E4:41"
+        }],
+        "slotNumber": 1
+    }, {
+        "deviceName": "",
+        "deviceNumber": 2,
+        "location": "Mezz",
+        "physicalPorts": [],
+        "slotNumber": 2
+    }]
+}
+
 
 class OneViewClientAuthTestCase(unittest.TestCase):
 
@@ -507,6 +633,63 @@ class OneViewClientTestCase(unittest.TestCase):
             exc_expected_msg,
             oneview_client.validate_node_enclosure_group,
             driver_info
+        )
+
+    @mock.patch.object(client.Client, 'get_server_hardware',
+                       autospec=True)
+    def test_is_node_port_mac_compatible_with_server_hardware(
+        self, mock_server_hardware, mock__authenticate
+    ):
+        server_hardware_mock = ServerHardware()
+        setattr(server_hardware_mock, "uri", "/anyuri")
+        server_hardware_mock_port_map = PORT_MAP
+        setattr(server_hardware_mock,
+                "port_map",
+                server_hardware_mock_port_map)
+
+        mock_server_hardware.return_value = server_hardware_mock
+
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        oneview_client.is_node_port_mac_compatible_with_server_hardware(
+            {},
+            [type('obj', (object,), {'_address': 'D8:9D:67:73:54:00'})]
+        )
+
+        mock_server_hardware.assert_called_once_with(oneview_client, {})
+
+    @mock.patch.object(client.Client, 'get_server_hardware',
+                       autospec=True)
+    def test_is_node_port_mac_incompatible_with_server_hardware(
+        self, mock_server_hardware, mock__authenticate
+    ):
+        server_hardware_mock = ServerHardware()
+        setattr(server_hardware_mock, "uri", "/anyuri")
+        server_hardware_mock_port_map = PORT_MAP
+        setattr(server_hardware_mock,
+                "port_map",
+                server_hardware_mock_port_map)
+
+        mock_server_hardware.return_value = server_hardware_mock
+
+        exc_expected_msg = (
+            "The ports of the node are not compatible with its server hardware"
+            " /anyuri."
+        )
+
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        self.assertRaisesRegexp(
+            exceptions.OneViewInconsistentResource,
+            exc_expected_msg,
+            oneview_client
+            .is_node_port_mac_compatible_with_server_hardware,
+            {},
+            [type('obj', (object,), {'_address': 'AA:BB:CC:DD:EE:FF'})]
         )
 
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware',
