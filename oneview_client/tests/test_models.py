@@ -101,6 +101,7 @@ class Test(unittest.TestCase):
             'processorCount': 'processor_count',
             'processorCoreCount': 'processor_core_count',
             'memoryMb': 'memory_mb',
+            'portMap': 'port_map',
         }
         self.assertEqual(sh.attribute_map, sh_attribute_map)
         self.assertEqual(sh.uri, 'http://something.com/1111-2222-3333-4444')
@@ -118,6 +119,8 @@ class Test(unittest.TestCase):
             'uri': 'uri',
             'serverHardwareTypeUri': 'server_hardware_type_uri',
             'enclosureGroupUri': 'enclosure_group_uri',
+            'boot': 'boot',
+            'connections': 'connections',
         }
         self.assertEqual(spt.attribute_map, spt_attribute_map)
         self.assertEqual(spt.uri, 'http://something.com/1111-2222-3333-4444')

@@ -66,6 +66,7 @@ class ServerHardware(OneViewObject):
         'processorCount': 'processor_count',
         'processorCoreCount': 'processor_core_count',
         'memoryMb': 'memory_mb',
+        'portMap': 'port_map',
     }
 
 
@@ -74,6 +75,8 @@ class ServerProfileTemplate(OneViewObject):
         'uri': 'uri',
         'serverHardwareTypeUri': 'server_hardware_type_uri',
         'enclosureGroupUri': 'enclosure_group_uri',
+        'connections': 'connections',
+        'boot': 'boot',
     }
 
 
