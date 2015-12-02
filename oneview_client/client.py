@@ -360,6 +360,32 @@ class Client(object):
             )
             raise exceptions.OneViewInconsistentResource(message)
 
+    def is_node_port_mac_compatible_with_server_hardware(
+        self, node_info, ports
+    ):
+        server_hardware = self.get_server_hardware(node_info)
+
+        device = server_hardware.port_map.get('deviceSlots')[0]
+        first_physical_port = device.get('physicalPorts')[0]
+
+        is_mac_address_compatible = True
+        for port in ports:
+            port_address = port.__dict__.get('_obj_address')
+            if port_address is None:
+                port_address = port.__dict__.get('_address')
+
+            if port_address.lower() != \
+               first_physical_port.get('mac').lower():
+                is_mac_address_compatible = False
+
+        if (not is_mac_address_compatible) or len(ports) == 0:
+            message = (
+                "The ports of the node are not compatible with its"
+                " server hardware %(server_hardware_uri)s." %
+                {'server_hardware_uri': server_hardware.uri}
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
     def validate_node_server_profile_template(self, node_info):
         node_spt_uri = node_info.get('server_profile_template_uri')
 

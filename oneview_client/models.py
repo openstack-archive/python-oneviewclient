@@ -69,6 +69,7 @@ class ServerHardware(OneViewObject):
             'processorCount': 'processor_count',
             'processorCoreCount': 'processor_core_count',
             'memoryMb': 'memory_mb',
+            'portMap': 'port_map',
         }
 
 
