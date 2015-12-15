@@ -275,14 +275,14 @@ class Client(object):
         server_hardware_memorymb = server_hardware_json.get('memoryMb')
         server_hardware_cpus = (server_hardware_json.get('processorCoreCount')
                                 * server_hardware_json.get('processorCount'))
-        if server_hardware_memorymb != node_memorymb:
+        if int(server_hardware_memorymb) != int(node_memorymb):
             message = (
                 "Node memory_mb is inconsistent with OneView's"
                 " server hardware %(server_hardware_uri)s memoryMb."
                 % {'server_hardware_uri': node_sh_uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
-        elif server_hardware_cpus != node_cpus:
+        elif int(server_hardware_cpus) != int(node_cpus):
             message = (
                 "Node cpus is inconsistent with OneView's"
                 " server hardware %(server_hardware_uri)s cpus."
