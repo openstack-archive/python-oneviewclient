@@ -279,7 +279,11 @@ class Client(object):
             message = (
                 "Node memory_mb is inconsistent with OneView's"
                 " server hardware %(server_hardware_uri)s memoryMb."
-                % {'server_hardware_uri': node_sh_uri}
+                " OneView's server hardware memoryMb is %(oneview_memory_mb)s"
+                " and Node memory_mb is %(node_memory_mb)s."
+                % {'server_hardware_uri': node_sh_uri,
+                   'oneview_memory_mb': server_hardware_memorymb,
+                   'node_memory_mb': node_memorymb:}
             )
             raise exceptions.OneViewInconsistentResource(message)
         elif server_hardware_cpus != node_cpus:
