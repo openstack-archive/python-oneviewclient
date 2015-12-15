@@ -102,9 +102,14 @@ class Client(object):
 
     def verify_oneview_version(self):
         if not self._is_oneview_version_compatible():
-            raise exceptions.IncompatibleOneViewAPIVersion(
-                "The version of the OneView's API is unsupported. Supported "
-                "version is '%s'" % SUPPORTED_ONEVIEW_VERSION)
+            message = (
+                "The version of the OneView's API is unsupported. Current"
+                "version is %(oneview_version)s Supported version is "
+                "'%(suported_version)s'"
+                % {'oneview_version': self.get_oneview_version(),
+                   'suported_version': SUPPORTED_ONEVIEW_VERSION}
+            )
+            raise exceptions.IncompatibleOneViewAPIVersion(message)
 
     def _is_oneview_version_compatible(self):
         versions = self.get_oneview_version()
@@ -279,14 +284,22 @@ class Client(object):
             message = (
                 "Node memory_mb is inconsistent with OneView's"
                 " server hardware %(server_hardware_uri)s memoryMb."
-                % {'server_hardware_uri': node_sh_uri}
+                " OneView's server hardware memoryMb is %(sh_memory_mb)s"
+                " and Node memory_mb is %(node_memory_mb)s."
+                % {'server_hardware_uri': node_sh_uri,
+                   'sh_memory_mb': server_hardware_memorymb,
+                   'node_memory_mb': node_memorymb}
             )
             raise exceptions.OneViewInconsistentResource(message)
         elif server_hardware_cpus != node_cpus:
             message = (
                 "Node cpus is inconsistent with OneView's"
                 " server hardware %(server_hardware_uri)s cpus."
-                % {'server_hardware_uri': node_sh_uri}
+                " OneView's server hardware cpus is %(sh_cpus)s"
+                " and Node cpus is %(node_cpus)s."
+                % {'server_hardware_uri': node_sh_uri,
+                   'sh_cpus': server_hardware_cpus,
+                   'node_cpus': node_cpus}
             )
             raise exceptions.OneViewInconsistentResource(message)
 
@@ -297,10 +310,13 @@ class Client(object):
 
         if server_hardware_sht_uri != node_sht_uri:
             message = (
-                "Node server_hardware_type_uri is inconsistent"
-                " with OneView's server hardware %(server_hardware_uri)s"
-                " serverHardwareTypeUri." %
-                {'server_hardware_uri': node_info.get('server_hardware_uri')}
+                "Node server_hardware_type_uri %(node_sht_uri)s is "
+                "inconsistent with OneView's server hardware "
+                "%(server_hardware_uri)s serverHardwareTypeUri "
+                "%(sh_sht_uri)s."
+                % {'node_sht_uri': node_sht_uri:,
+                   'server_hardware_uri': node_info.get('server_hardware_uri'),
+                   'sh_sht_uri': server_hardware_sht_uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
 
@@ -315,11 +331,13 @@ class Client(object):
         if node_enclosure_group_uri is not '':
             if sh_enclosure_group_uri != node_enclosure_group_uri:
                 message = (
-                    "Node enclosure_group_uri is inconsistent"
+                    "Node enclosure_group_uri %(node_eg_uri)s is inconsistent"
                     " with OneView's server hardware %(server_hardware_uri)s"
-                    " serverGroupUri." %
-                    {'server_hardware_uri': node_info.
-                     get('server_hardware_uri')}
+                    " serverGroupUri %(sh_sg_uri)s."
+                    % {'node_eg_uri': node_enclosure_group_uri,
+                       'server_hardware_uri': node_info.
+                     get('server_hardware_uri'),
+                       'sh_sg_uri': sh_enclosure_group_uri}
                 )
                 raise exceptions.OneViewInconsistentResource(message)
 
@@ -381,20 +399,25 @@ class Client(object):
 
         if spt_server_hardware_type_uri != sh_server_hardware_type_uri:
             message = (
-                "Server profile template %(spt_uri)s serverHardwareTypeUri is"
-                " inconsistent with server hardware %(server_hardware_uri)s"
-                " serverHardwareTypeUri." %
-                {'spt_uri': node_spt_uri,
-                 'server_hardware_uri': node_info.get('server_hardware_uri')}
+                "Server profile template %(spt_uri)s serverHardwareTypeUri"
+                " %(spt_sht_uri)s is inconsistent with server hardware"
+                " %(server_hardware_uri)s serverHardwareTypeUri"
+                " %(sh_sht_uri)s."
+                % {'spt_uri': node_spt_uri,
+                   'spt_sht_uri': spt_server_hardware_type_uri,
+                   'server_hardware_uri': node_info.get('server_hardware_uri'),
+                   'sh_sht_uri': sh_server_hardware_type_uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
         if spt_enclosure_group_uri != sh_enclosure_group_uri_uri:
             message = (
-                "Server profile template %(spt_uri)s enclosureGroupUri is"
-                " inconsistent with server hardware %(server_hardware_uri)s"
-                " serverGroupUri." %
-                {'spt_uri': node_spt_uri,
-                 'server_hardware_uri': node_info.get('server_hardware_uri')}
+                "Server profile template %(spt_uri)s enclosureGroupUri"
+                " %(spt_eg_uri)s is inconsistent with server hardware"
+                " %(server_hardware_uri)s serverGroupUri %(sh_sg_uri)s."
+                % {'spt_uri': node_spt_uri,
+                   'spt_eg_uri': spt_enclosure_group_uri,
+                   'server_hardware_uri': node_info.get('server_hardware_uri'),
+                   'sh_sg_uri': sh_enclosure_group_uri_uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
 
