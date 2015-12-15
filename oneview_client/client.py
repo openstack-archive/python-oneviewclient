@@ -279,14 +279,22 @@ class Client(object):
             message = (
                 "Node memory_mb is inconsistent with OneView's"
                 " server hardware %(server_hardware_uri)s memoryMb."
-                % {'server_hardware_uri': node_sh_uri}
+                " OneView's server hardware memoryMb is %(sh_memory_mb)s"
+                " and Node memory_mb is %(node_memory_mb)s."
+                % {'server_hardware_uri': node_sh_uri,
+                   'sh_memory_mb': server_hardware_memorymb,
+                   'node_memory_mb': node_memorymb}
             )
             raise exceptions.OneViewInconsistentResource(message)
         elif server_hardware_cpus != node_cpus:
             message = (
                 "Node cpus is inconsistent with OneView's"
                 " server hardware %(server_hardware_uri)s cpus."
-                % {'server_hardware_uri': node_sh_uri}
+                " OneView's server hardware cpus is %(sh_cpus)s"
+                " and Node cpus is %(node_cpus)s."
+                % {'server_hardware_uri': node_sh_uri,
+                   'sh_cpus': server_hardware_cpus,
+                   'node_cpus': node_cpus}
             )
             raise exceptions.OneViewInconsistentResource(message)
 
@@ -299,8 +307,8 @@ class Client(object):
             message = (
                 "Node server_hardware_type_uri is inconsistent"
                 " with OneView's server hardware %(server_hardware_uri)s"
-                " serverHardwareTypeUri." %
-                {'server_hardware_uri': node_info.get('server_hardware_uri')}
+                " serverHardwareTypeUri."
+                % {'server_hardware_uri': node_info.get('server_hardware_uri')}
             )
             raise exceptions.OneViewInconsistentResource(message)
 
@@ -317,8 +325,8 @@ class Client(object):
                 message = (
                     "Node enclosure_group_uri is inconsistent"
                     " with OneView's server hardware %(server_hardware_uri)s"
-                    " serverGroupUri." %
-                    {'server_hardware_uri': node_info.
+                    " serverGroupUri."
+                    % {'server_hardware_uri': node_info.
                      get('server_hardware_uri')}
                 )
                 raise exceptions.OneViewInconsistentResource(message)
