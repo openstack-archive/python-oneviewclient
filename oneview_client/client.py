@@ -24,6 +24,7 @@ import retrying
 from oneview_client import exceptions
 from oneview_client import ilo_utils
 from oneview_client import managers
+from oneview_client import models
 from oneview_client import states
 
 
@@ -42,6 +43,7 @@ PRESS_AND_HOLD = 'PressAndHold'
 
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
+SERVER_PROFILE_PREFIX_URI = '/rest/server-profiles/'
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -107,9 +109,9 @@ class BaseClient(object):
 
     def verify_oneview_version(self):
         if not self._is_oneview_version_compatible():
-            raise exceptions.IncompatibleOneViewAPIVersion(
-                "The version of the OneView's API is unsupported. Supported "
-                "version is '%s'" % SUPPORTED_ONEVIEW_VERSION)
+            msg = ("The version of the OneView's API is unsupported. "
+                   "Supported version is '%s'" % SUPPORTED_ONEVIEW_VERSION)
+            raise exceptions.IncompatibleOneViewAPIVersion(msg)
 
     def _is_oneview_version_compatible(self):
         versions = self.get_oneview_version()
@@ -278,7 +280,8 @@ class Client(BaseClient):
         return self.get_server_hardware(node_info).power_state
 
     def power_on(self, node_info):
-        if self.get_node_power_state(node_info) == states.ONEVIEW_POWER_ON:
+        if self.get_node_power_state(node_info) == \
+           states.ONEVIEW_POWER_ON:
             ret = states.ONEVIEW_POWER_ON
         else:
             ret = self.set_node_power_state(
@@ -287,7 +290,8 @@ class Client(BaseClient):
         return ret
 
     def power_off(self, node_info):
-        if self.get_node_power_state(node_info) == states.ONEVIEW_POWER_OFF:
+        if self.get_node_power_state(node_info) == \
+           states.ONEVIEW_POWER_OFF:
             ret = states.ONEVIEW_POWER_OFF
         else:
             ret = self.set_node_power_state(
@@ -309,22 +313,16 @@ class Client(BaseClient):
         except exceptions.OneViewTaskError as e:
             raise exceptions.OneViewErrorStateSettingPowerState(e.message)
 
-        current_state = self.get_node_power_state(node_info)
+        return state
 
-        if current_state is states.ONEVIEW_ERROR:
-            message = (
-                "Error setting node power state to %(state)s" %
-                {"state": state}
-            )
-            raise exceptions.OneViewErrorStateSettingPowerState(message)
-
-        return current_state
-
-    # --- ManagementDriver ---
+    # --- Management Driver ---
     def get_server_hardware(self, node_info):
         uuid = node_info['server_hardware_uri'].split("/")[-1]
-
         return self._server_hardware.get(uuid)
+
+    def get_server_hardware_state(self, uuid):
+        server_hardware = self.get_server_hardware_by_uuid(uuid)
+        return server_hardware.state
 
     def get_server_hardware_by_uuid(self, uuid):
         return self._server_hardware.get(uuid)
@@ -342,30 +340,31 @@ class Client(BaseClient):
             raise exceptions.OneViewServerProfileAssociatedError(message)
 
         server_profile_uuid = server_profile_uri.split("/")[-1]
-
         return self._server_profile.get(server_profile_uuid)
 
     def get_server_profile_template(self, node_info):
         uuid = node_info['server_profile_template_uri'].split("/")[-1]
-
-        return self._server_profile.get(uuid)
+        return self._server_profile_template.get(uuid)
 
     def get_server_profile_template_by_uuid(self, uuid):
         return self._server_profile_template.get(uuid)
+
+    def get_server_profile_by_uuid(self, uuid):
+        server_profile_uri = SERVER_PROFILE_PREFIX_URI + str(uuid)
+        server_profile_json = self._prepare_and_do_request(
+            uri=server_profile_uri
+        )
+        if server_profile_json.get("uri") is None:
+            message = "OneView Server Profile resource not found."
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        return models.ServerProfile.from_json(server_profile_json)
 
     def get_boot_order(self, node_info):
         server_profile = self.get_server_profile_from_hardware(
             node_info
         )
         return server_profile.boot.get("order")
-
-    def _update_boot_order(self, server_profile, order):
-        manageBoot = server_profile.boot.get("manageBoot")
-        server_profile.boot = {
-            "manageBoot": manageBoot,
-            "order": order
-        }
-        return server_profile
 
     def set_boot_device(self, node_info, new_primary_boot_device):
         boot_order = self.get_boot_order(node_info)
@@ -382,12 +381,13 @@ class Client(BaseClient):
             node_info
         )
 
-        server_profile_updated = self._update_boot_order(
-            server_profile,
-            boot_order
-        )
+        manage_boot = server_profile.boot.get("manageBoot")
+        server_profile.boot = {
+            "manageBoot": manage_boot,
+            "order": boot_order
+        }
 
-        boot_order_dict = server_profile_updated.to_oneview_dict()
+        boot_order_dict = server_profile.to_oneview_dict()
 
         task = self._prepare_and_do_request(
             uri=server_profile.uri, body=boot_order_dict,
@@ -398,7 +398,89 @@ class Client(BaseClient):
         except exceptions.OneViewTaskError as e:
             raise exceptions.OneViewErrorSettingBootDevice(e.message)
 
-    # ---- Node validate ----
+    # ---- Deploy Driver ----
+    def clone_template_and_apply(self,
+                                 server_profile_name,
+                                 server_hardware_uuid,
+                                 server_profile_template_uuid):
+
+        if not server_profile_name:
+            raise ValueError(
+                'Missing Server Profile name.'
+            )
+
+        if not server_hardware_uuid:
+            raise ValueError(
+                'Missing Server Hardware uuid.'
+            )
+
+        if not server_profile_template_uuid:
+            raise ValueError(
+                'Missing Server Profile Template uuid.'
+            )
+
+        server_hardware_uri = '%s%s' % (
+            SERVER_HARDWARE_PREFIX_URI,
+            server_hardware_uuid
+        )
+
+        server_profile_template_uri = '%s%s' % (
+            SERVER_PROFILE_TEMPLATE_PREFIX_URI,
+            server_profile_template_uuid
+        )
+
+        generate_new_profile_uri = '%s/new-profile' % (
+            server_profile_template_uri
+        )
+
+        server_profile_from_template_json = self._prepare_and_do_request(
+            uri=generate_new_profile_uri
+        )
+
+        server_profile_from_template_json['serverHardwareUri'] = \
+            server_hardware_uri
+        server_profile_from_template_json['name'] = server_profile_name
+        server_profile_from_template_json['serverProfileTemplateUri'] = ""
+
+        post_profile_task = self._prepare_and_do_request(
+            uri=SERVER_PROFILE_PREFIX_URI,
+            body=server_profile_from_template_json,
+            request_type=POST_REQUEST_TYPE
+        )
+
+        try:
+            complete_task = self._wait_for_task_to_complete(
+                post_profile_task
+            )
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewServerProfileAssignmentError(e.message)
+
+        server_profile_uri = complete_task.get('associatedResource')\
+            .get('resourceUri')
+
+        uuid = server_profile_uri.split("/")[-1]
+        server_profile = self.get_server_profile_by_uuid(uuid)
+
+        return server_profile
+
+    def delete_server_profile(self, uuid):
+        if not uuid:
+            raise ValueError('Missing Server Profile uuid.')
+
+        delete_profile_task = self._prepare_and_do_request(
+            uri='%s%s' % (SERVER_PROFILE_PREFIX_URI, uuid),
+            request_type=DELETE_REQUEST_TYPE
+        )
+        try:
+            complete_task = self._wait_for_task_to_complete(
+                delete_profile_task
+            )
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewServerProfileDeletionError(e.message)
+
+        return complete_task.get('associatedResource').get('resourceUri')
+
+    # ---- Node Validate ----
     def validate_node_server_hardware(
         self, node_info, node_memorymb, node_cpus
     ):
@@ -536,9 +618,7 @@ class Client(BaseClient):
     def validate_node_server_profile_template(self, node_info):
         node_spt_uri = node_info.get('server_profile_template_uri')
 
-        server_profile_template = self.get_server_profile_template(
-            node_info
-        )
+        server_profile_template = self.get_server_profile_template(node_info)
         spt_server_hardware_type_uri = server_profile_template \
             .server_hardware_type_uri
         spt_enclosure_group_uri = server_profile_template.enclosure_group_uri
@@ -565,6 +645,14 @@ class Client(BaseClient):
             )
             raise exceptions.OneViewInconsistentResource(message)
 
+    def validate_spt_boot_connections(self, uuid):
+        if not uuid:
+            raise ValueError('Missing Server Profile Template uuid.')
+
+        server_profile_template = self.get_server_profile_template_by_uuid(
+            uuid
+        )
+
         for connection in server_profile_template.connections:
             boot = connection.get('boot')
             if boot is not None and boot.get('priority').lower() != 'primary':
@@ -587,9 +675,7 @@ def _check_request_status(response):
         time.sleep(10)
         repeat = True
     elif status == 500:
-        raise exceptions.OneViewInternalServerError(
-            "OneView returned HTTP 500"
-        )
+        raise exceptions.OneViewInternalServerError()
     # Any other unexpected status are logged
     elif status not in (200, 202,):
         message = (

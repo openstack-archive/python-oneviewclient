@@ -18,7 +18,7 @@ from oneview_client import exceptions
 
 
 class OneViewObject(object):
-    """DO NOT INSTANTIATE. THIS IS AN ABSTRACT CLASS"""
+    """DO NOT INSTANTIATE. THIS IS AN ABSTRACT CLASS."""
 
     @classmethod
     def from_json(cls, json):
@@ -72,6 +72,7 @@ class ServerHardware(OneViewObject):
         'serverHardwareTypeUri': 'server_hardware_type_uri',
         'serverGroupUri': 'enclosure_group_uri',
         'status': 'status',
+        'state': 'state',
         'stateReason': 'state_reason',
         'locationUri': 'enclosure_uri',
         'processorCount': 'processor_count',
@@ -111,6 +112,7 @@ class ServerProfileTemplate(OneViewObject):
 class ServerProfile(OneViewObject):
     attribute_map = {
         'uri': 'uri',
+        'name': 'name',
         'serverProfileTemplateUri': 'server_profile_template_uri',
         'templateCompliance': 'template_compliance',
         'serverHardwareUri': 'server_hardware_uri',

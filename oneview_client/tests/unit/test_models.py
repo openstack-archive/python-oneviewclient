@@ -100,11 +100,12 @@ class Test(unittest.TestCase):
             'serverHardwareTypeUri': 'something2',
             'serverGroupUri': 'something3',
             'status': 'something4',
-            'stateReason': 'something5',
-            'locationUri': 'something6',
-            'processorCount': 'something7',
-            'processorCoreCount': 'something8',
-            'memoryMb': 'something9',
+            'state': 'something5',
+            'stateReason': 'something6',
+            'locationUri': 'something7',
+            'processorCount': 'something8',
+            'processorCoreCount': 'something9',
+            'memoryMb': 'something10',
             'mpHostInfo': {
                 'mpHostName': '172.18.6.18',
                 'mpIpAddresses': [{
@@ -123,6 +124,7 @@ class Test(unittest.TestCase):
             'serverHardwareTypeUri': 'server_hardware_type_uri',
             'serverGroupUri': 'enclosure_group_uri',
             'status': 'status',
+            'state': 'state',
             'stateReason': 'state_reason',
             'locationUri': 'enclosure_uri',
             'processorCount': 'processor_count',
@@ -136,7 +138,8 @@ class Test(unittest.TestCase):
         self.assertEqual(sh.uuid, '1111-2222-3333-4444')
         self.assertEqual(sh.name, 'my-server-profile')
         self.assertEqual(sh.power_state, 'Powered On')
-        self.assertEqual(sh.state_reason, 'something5')
+        self.assertEqual(sh.state, 'something5')
+        self.assertEqual(sh.state_reason, 'something6')
         self.assertIsNone(sh.server_profile_uri)
         self.assertFalse(hasattr(sh, 'something_not_defined'))
         self.assertDictContainsSubset(
@@ -187,6 +190,7 @@ class Test(unittest.TestCase):
         sp = ServerProfile.from_json(json)
         server_profile_attribute_map = {
             'uri': 'uri',
+            'name': 'name',
             'serverProfileTemplateUri': 'server_profile_template_uri',
             'templateCompliance': 'template_compliance',
             'serverHardwareUri': 'server_hardware_uri',
