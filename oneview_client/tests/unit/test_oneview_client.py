@@ -25,9 +25,7 @@ import unittest
 
 from oneview_client import client
 from oneview_client import exceptions
-from oneview_client.models import ServerHardware
-from oneview_client.models import ServerProfile
-from oneview_client.models import ServerProfileTemplate
+from oneview_client import models
 from oneview_client import states
 
 PROPERTIES_DICT = {"cpu_arch": "x86_64",
@@ -176,17 +174,25 @@ class TestablePort(object):
 
 class OneViewClientAuthTestCase(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch.object(client.Client, '_authenticate', autospec=True)
+    def setUp(self, mock__authenticate):
         super(OneViewClientAuthTestCase, self).setUp()
         self.manager_url = 'https://1.2.3.4'
         self.username = 'user'
         self.password = 'password'
+        self.oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
 
     @mock.patch.object(requests, 'post')
     def test_authenticate(self, mock_post):
-        client.Client(self.manager_url,
-                      self.username,
-                      self.password)
+        client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
         mock_post.assert_called_once_with(
             'https://1.2.3.4/rest/login-sessions',
             data=json.dumps({"userName": "user", "password": "password"}),
@@ -196,10 +202,12 @@ class OneViewClientAuthTestCase(unittest.TestCase):
 
     @mock.patch.object(requests, 'post')
     def test_authenticate_insecure(self, mock_post):
-        client.Client(self.manager_url,
-                      self.username,
-                      self.password,
-                      allow_insecure_connections=True)
+        client.Client(
+            self.manager_url,
+            self.username,
+            self.password,
+            allow_insecure_connections=True
+        )
         mock_post.assert_called_once_with(
             'https://1.2.3.4/rest/login-sessions',
             data=json.dumps({"userName": "user", "password": "password"}),
@@ -223,18 +231,18 @@ class OneViewClientAuthTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, '_authenticate', autospec=True)
     def test_get_session(self, mock__authenticate):
-        reference = "xyz"
-
+        reference = "XYZ"
         response = mock__authenticate.return_value
         response.status_code = http_client.OK
-        response.json = mock.MagicMock(return_value={"sessionID": reference})
+        response.json = mock.MagicMock(return_value={'sessionID': reference})
         mock__authenticate.return_value = response
-
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        session_id = oneview_client.get_session()
-        self.assertEqual(reference, session_id)
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+        oneview_client._authenticate = mock__authenticate
+        self.assertEqual("XYZ", self.oneview_client.get_session())
 
 
 class OneViewClientTestCase(unittest.TestCase):
@@ -262,15 +270,20 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, 'set_node_power_state', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
-    def test_power_on_server_off(self, mock_get_pstate, mock_set_pstate):
+    def test_power_on_server_off(
+        self, mock_get_pstate, mock_set_pstate
+    ):
         driver_info = {"server_hardware_uri": "/any"}
         mock_get_pstate.return_value = states.ONEVIEW_POWER_OFF
         self.oneview_client.power_on(driver_info)
         mock_get_pstate.assert_called_once_with(
-            self.oneview_client, driver_info
+            self.oneview_client,
+            driver_info
         )
         mock_set_pstate.assert_called_once_with(
-            self.oneview_client, driver_info, states.ONEVIEW_POWER_ON
+            self.oneview_client,
+            driver_info,
+            states.ONEVIEW_POWER_ON
         )
 
     @mock.patch.object(client.Client, 'set_node_power_state', autospec=True)
@@ -286,15 +299,20 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, 'set_node_power_state', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
-    def test_power_off_server_on(self, mock_get_pstate, mock_set_pstate):
+    def test_power_off_server_on(
+        self, mock_get_pstate, mock_set_pstate
+    ):
         driver_info = {"server_hardware_uri": "/any"}
         mock_get_pstate.return_value = states.ONEVIEW_POWER_ON
         self.oneview_client.power_off(driver_info)
         mock_get_pstate.assert_called_once_with(
-            self.oneview_client, driver_info
+            self.oneview_client,
+            driver_info
         )
         mock_set_pstate.assert_called_once_with(
-            self.oneview_client, driver_info, states.ONEVIEW_POWER_OFF,
+            self.oneview_client,
+            driver_info,
+            states.ONEVIEW_POWER_OFF,
             client.PRESS_AND_HOLD
         )
 
@@ -347,10 +365,10 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
-    def test_set_power_state_server_hardware_power_status_error(
+    def test_set_power_state_server_hardware_power_status_unknown(
         self, mock_get_node_power, mock__prepare_do_request
     ):
-        power = states.ONEVIEW_ERROR
+        power = states.ONEVIEW_UNKNOWN
         mock_get_node_power.return_value = power
         mock__prepare_do_request.return_value = {
             "taskState": "Error",
@@ -445,7 +463,7 @@ class OneViewClientTestCase(unittest.TestCase):
         driver_info = {}
         new_first_boot_device = "any_boot_device"
         mock_get_boot_order.return_value = []
-        server_hardware = ServerHardware()
+        server_hardware = models.ServerHardware()
         setattr(server_hardware, 'server_profile_uri', None)
         mock_get_server_hardware.return_value = server_hardware
 
@@ -495,10 +513,37 @@ class OneViewClientTestCase(unittest.TestCase):
             self.oneview_client, uri="/rest/server-profile-templates/123"
         )
 
-    @mock.patch.object(client.Client, '_authenticate', autospec=True)
+    @mock.patch.object(requests, 'get')
+    def test_get_server_profile_nonexistent_by_uuid(
+        self, mock_get
+    ):
+        response = mock_get.return_value
+        response.status_code = http_client.NOT_FOUND
+        mock_get.return_value = response
+        uuid = 0
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            self.oneview_client.get_server_profile_by_uuid,
+            uuid
+        )
+
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
-    def test__wait_for_task_to_complete(self, mock__prepare_do_request,
-                                        mock__authenticate):
+    def test_get_server_profile_by_uuid(
+        self, mock__prepare_do_request
+    ):
+        server_profile_uuid = 123
+        server_profile_uri = "/rest/server-profiles/" + \
+            str(server_profile_uuid)
+        mock__prepare_do_request.return_value = {
+            "uri": server_profile_uri
+        }
+        self.oneview_client.get_server_profile_by_uuid(server_profile_uuid)
+        mock__prepare_do_request.assert_called_once_with(
+            self.oneview_client, uri=server_profile_uri
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test__wait_for_task_to_complete(self, mock__prepare_do_request):
 
         task0 = {
             "uri": "/any_uri",
@@ -524,13 +569,8 @@ class OneViewClientTestCase(unittest.TestCase):
             "percentComplete": 100
         }
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password,
-                                       max_polling_attempts=1)
-
         mock__prepare_do_request.side_effect = [task1, task2, task3]
-        oneview_client._wait_for_task_to_complete(task0)
+        self.oneview_client._wait_for_task_to_complete(task0)
 
     @mock.patch.object(client.Client, '_authenticate', autospec=True)
     @mock.patch.object(requests, 'get')
@@ -542,10 +582,13 @@ class OneViewClientTestCase(unittest.TestCase):
             "taskState": "Something",
             "percentComplete": 0
         }
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password,
-                                       max_polling_attempts=2)
+
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password,
+            max_polling_attempts=2
+        )
 
         response = mock_get.return_value
         response.status_code = http_client.REQUEST_TIMEOUT
@@ -562,7 +605,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_server_hardware_inconsistent_memorymb_value(
         self, mock_get_server_hardware
     ):
-        server_hardware_mock = ServerHardware()
+        server_hardware_mock = models.ServerHardware()
         setattr(server_hardware_mock, "processor_core_count", 1)
         setattr(server_hardware_mock, "processor_count", 1)
         setattr(server_hardware_mock, "memory_mb", 1)
@@ -593,7 +636,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_server_hardware_inconsistent_cpus_value(
         self, mock_get_server_hardware
     ):
-        server_hardware_mock = ServerHardware()
+        server_hardware_mock = models.ServerHardware()
         setattr(server_hardware_mock, "processor_core_count", 2)
         setattr(server_hardware_mock, "processor_count", 3)
         setattr(server_hardware_mock, "memory_mb", 1)
@@ -624,7 +667,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_server_hardware_type_inconsistent_sht_uri(
         self, mock_get_server_hardware
     ):
-        server_hardware_mock = ServerHardware()
+        server_hardware_mock = models.ServerHardware()
         setattr(server_hardware_mock,
                 "server_hardware_type_uri",
                 "/incosistent_uri")
@@ -652,7 +695,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_enclosure_group_inconsistent(
         self, mock_get_server_hardware
     ):
-        server_hardware = ServerHardware()
+        server_hardware = models.ServerHardware()
         server_hardware.uuid = "aaaa-bbbb-cccc"
         server_hardware.enclosure_group_uri = "/my-real-enclosure-group"
         mock_get_server_hardware.return_value = server_hardware
@@ -681,7 +724,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_is_node_port_mac_compatible_with_server_hardware(
         self, mock_server_hardware, mock_server_hardware_by_uuid,
     ):
-        server_hardware_mock = ServerHardware()
+        server_hardware_mock = models.ServerHardware()
         setattr(server_hardware_mock, "uri", "/anyuri")
         setattr(server_hardware_mock, "uuid", "1111-2222-3333")
         server_hardware_mock_port_map = PORT_MAP
@@ -706,7 +749,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_is_node_port_mac_incompatible_with_server_hardware(
         self, mock_server_hardware, mock_server_hardware_by_uuid,
     ):
-        server_hardware_mock = ServerHardware()
+        server_hardware_mock = models.ServerHardware()
         setattr(server_hardware_mock, "uri", "/anyuri")
         setattr(server_hardware_mock, "uuid", "1111-2222-3333")
         server_hardware_mock_port_map = PORT_MAP
@@ -736,7 +779,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_check_node_port_mac_incompatible_with_server_profile(
         self, mock_server_profile
     ):
-        server_profile_mock = ServerProfile()
+        server_profile_mock = models.ServerProfile()
         setattr(server_profile_mock, "uri", "/anyuri")
         server_profile_mock_connections = [
             {'boot': {'priority': u'Primary'},
@@ -764,10 +807,10 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware',
                        autospec=True)
-    def test_check_node_port_mac_no_primary_boot_connection(
+    def test_check_node_port_server_profile_mac_no_primary_boot_connection(
         self, mock_server_profile
     ):
-        server_profile_mock = ServerProfile()
+        server_profile_mock = models.ServerProfile()
         setattr(server_profile_mock, "uri", "/anyuri")
         server_profile_mock_connections = [
             {'boot': {'priority': u'NotBootable'},
@@ -799,13 +842,13 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_server_profile_template_inconsistent_sht(
         self, mock_server_hardware, mock_server_template
     ):
-        server_hardware_mock = ServerHardware()
+        server_hardware_mock = models.ServerHardware()
         setattr(server_hardware_mock,
                 "server_hardware_type_uri",
                 "/sht_uri")
         setattr(server_hardware_mock, "enclosure_group_uri", "eg_uri")
 
-        server_profile_template_mock = ServerProfileTemplate()
+        server_profile_template_mock = models.ServerProfileTemplate()
         setattr(server_profile_template_mock,
                 "server_hardware_type_uri",
                 "/inconsistent_uri")
@@ -840,13 +883,13 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_server_profile_template_inconsistent_eg(
         self, mock_server_hardware, mock_server_template
     ):
-        server_hardware_mock = ServerHardware()
+        server_hardware_mock = models.ServerHardware()
         setattr(server_hardware_mock,
                 "server_hardware_type_uri",
                 "/sht_uri")
         setattr(server_hardware_mock, "enclosure_group_uri", "eg_uri")
 
-        server_profile_template_mock = ServerProfileTemplate()
+        server_profile_template_mock = models.ServerProfileTemplate()
         setattr(server_profile_template_mock,
                 "server_hardware_type_uri",
                 "/sht_uri")
@@ -875,17 +918,12 @@ class OneViewClientTestCase(unittest.TestCase):
             driver_info
         )
 
-    @mock.patch.object(client.Client, 'get_server_profile_template',
+    @mock.patch.object(client.Client, 'get_server_profile_template_by_uuid',
                        autospec=True)
-    @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
-    def test_validate_node_server_profile_template_no_primary_boot_connection(
-        self, mock_server_hardware, mock_server_template
+    def test_validate_spt_boot_connections_no_primary_boot_connection(
+        self, mock_server_template
     ):
-        server_hardware_mock = ServerHardware()
-        setattr(server_hardware_mock, "server_hardware_type_uri", "/sht_uri")
-        setattr(server_hardware_mock, "enclosure_group_uri", "/eg_uri")
-
-        profile_template_mock = ServerProfileTemplate()
+        profile_template_mock = models.ServerProfileTemplate()
         setattr(profile_template_mock, "uri", "/template_uri")
         setattr(profile_template_mock, "server_hardware_type_uri", "/sht_uri")
         setattr(profile_template_mock, "enclosure_group_uri", "/eg_uri")
@@ -899,23 +937,19 @@ class OneViewClientTestCase(unittest.TestCase):
                 profile_template_mock_connections)
 
         mock_server_template.return_value = profile_template_mock
-        mock_server_hardware.return_value = server_hardware_mock
 
         exc_expected_msg = (
             "No primary boot connection configured for server profile"
             " template /template_uri."
         )
 
-        driver_info = {
-            "server_profile_template_uri": "/profile_uri"
-        }
+        server_profile_template_uuid = '11111111-2222-3333-4444-5555555555'
 
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            self.oneview_client
-            .validate_node_server_profile_template,
-            driver_info
+            self.oneview_client.validate_spt_boot_connections,
+            server_profile_template_uuid
         )
 
     @mock.patch.object(client.Client, 'get_oneview_version')
@@ -942,7 +976,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_is_mac_compatible_with_server_profile(
         self, mock_get_server_profile_from_hardware
     ):
-        server_profile_mock = ServerProfile()
+        server_profile_mock = models.ServerProfile()
         setattr(
             server_profile_mock,
             'connections',
@@ -961,7 +995,7 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
     def test_is_mac_compatible_with_server_profile_with_no_ports(
             self, mock_get_server_profile_from_hardware):
-        server_profile_mock = ServerProfile()
+        server_profile_mock = models.ServerProfile()
         setattr(
             server_profile_mock,
             'connections',
@@ -984,7 +1018,7 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
     def test_is_mac_compatible_with_server_profile_without_boot_in_connection(
             self, mock_get_server_profile_from_hardware):
-        server_profile_mock = ServerProfile()
+        server_profile_mock = models.ServerProfile()
         setattr(server_profile_mock, 'connections', [{}])
         setattr(server_profile_mock, 'uri', 'sp_uri')
         mock_get_server_profile_from_hardware.return_value = \
@@ -1006,12 +1040,12 @@ class OneViewClientTestCase(unittest.TestCase):
         self, mock_get_server_profile_from_hardware,
         mock_get_server_hardware, mock_get_sh_mac_from_ilo,
     ):
-        server_profile = ServerProfile()
+        server_profile = models.ServerProfile()
         server_profile.connections = []  # No connections, SP for DL server
         server_profile.uri = 'sp_uri'
         mock_get_server_profile_from_hardware.return_value = server_profile
 
-        server_hardware = ServerHardware()
+        server_hardware = models.ServerHardware()
         server_hardware_uuid = 'aaaa-bbbb-cccc'
         server_hardware.uuid = server_hardware_uuid
         server_hardware.mp_host_info = {
@@ -1044,14 +1078,14 @@ class OneViewClientTestCase(unittest.TestCase):
         my_host = 'https://my-host'
         key = '123'
         mock_collection.return_value = \
-            self.create_collection_for_sh_mac_from_ilo_test()
+            self._create_collection_for_sh_mac_from_ilo_test()
         mock_get_ilo_access.return_value = (my_host, key)
         mac = self.oneview_client.get_sh_mac_from_ilo(sh_uuid)
         mock_get_ilo_access.assert_called_once_with(sh_uuid)
         mock_ilo_logout.assert_called_once_with(my_host, key)
         self.assertEqual(mac, defined_mac)
 
-    def create_collection_for_sh_mac_from_ilo_test(self):
+    def _create_collection_for_sh_mac_from_ilo_test(self):
         status = 200
         headers = None
         system = {'Type': 'ComputerSystem.0',
@@ -1061,6 +1095,189 @@ class OneViewClientTestCase(unittest.TestCase):
 
         yield status, headers, system, memberuri
 
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    @mock.patch.object(client.Client, '_prepare_and_do_request')
+    @mock.patch.object(client.Client, 'get_server_hardware_by_uuid')
+    def test_check_server_hardware_state_profile_applied(
+            self, mock_get_server_hardware_by_uuid, mock__prepare_do_request,
+            mock__wait_for_task
+    ):
+
+        server_hardware = models.ServerHardware()
+        server_hardware.uri = '/rest/server-hardware/123456789'
+        server_hardware.state = states.ONEVIEW_PROFILE_APPLIED
+        mock_get_server_hardware_by_uuid.return_value = server_hardware
+
+        self.oneview_client.get_server_hardware_by_uuid = \
+            mock_get_server_hardware_by_uuid
+
+        self.assertEqual(
+            states.ONEVIEW_PROFILE_APPLIED,
+            self.oneview_client.get_server_hardware_state('123456789')
+        )
+
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    @mock.patch.object(client.Client, '_prepare_and_do_request')
+    @mock.patch.object(client.Client, 'get_server_hardware_by_uuid')
+    def test_check_server_hardware_state_applying_profile(
+            self, mock_get_server_hardware_by_uuid, mock__prepare_do_request,
+            mock__wait_for_task_authenticate
+    ):
+
+        server_hardware = models.ServerHardware()
+        server_hardware.uri = '/rest/server-hardware/123456789'
+        server_hardware.state = states.ONEVIEW_APPLYING_PROFILE
+        mock_get_server_hardware_by_uuid.return_value = server_hardware
+
+        self.oneview_client.get_server_hardware_by_uuid = \
+            mock_get_server_hardware_by_uuid
+
+        self.assertEqual(
+            states.ONEVIEW_APPLYING_PROFILE,
+            self.oneview_client.get_server_hardware_state('123456789')
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request')
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    def test_clone_template_and_apply_assignment_with_missing_parameters(
+        self, mock__wait_task, mock__prepare
+    ):
+
+        self.assertRaises(
+            ValueError,
+            self.oneview_client.clone_template_and_apply,
+            None,
+            None,
+            None
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request')
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    def test_clone_template_and_apply_assignment_error(
+        self, mock__wait_task, mock__prepare
+    ):
+
+        server_hardware_uuid = '111111111-2222-3333-4444-55555555555'
+        server_profile_template_uuid = '555555555-4444-3333-2222-11111111'
+
+        mock__wait_task.side_effect = exceptions.OneViewTaskError
+        self.oneview_client._wait_for_task_to_complete = mock__wait_task
+
+        self.assertRaises(
+            exceptions.OneViewServerProfileAssignmentError,
+            self.oneview_client.clone_template_and_apply,
+            'profilename',
+            server_hardware_uuid,
+            server_profile_template_uuid
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request')
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    @mock.patch.object(client.Client, 'get_server_profile_by_uuid')
+    def test_clone_template_and_apply_assignment(
+        self, mock_get_server_profile_by_uuid, mock__wait_task,
+        mock__prepare
+    ):
+
+        server_profile_name = 'Ironic Server Profile Test'
+        server_hardware_uuid = '111111111-2222-3333-4444-55555555555'
+        server_hardware_uri = '/rest/server-hardware/' + \
+            server_hardware_uuid
+        server_profile_template_uuid = '555555555-4444-3333-2222-11111111'
+        server_profile_template_uri = '/rest/server-profile-templates/' + \
+            server_profile_template_uuid
+
+        first_server_profile_json = {
+            'serverHardwareUri': "/rest/server-hardware/1111-2222-3333",
+            'name': "XXXXXXXXXXXXXX",
+            'serverProfileTemplateUri': server_profile_template_uri
+        }
+
+        mock__prepare.return_value = first_server_profile_json
+
+        second_server_profile_json = {
+            'serverHardwareUri': server_hardware_uri,
+            'name': server_profile_name,
+            'serverProfileTemplateUri': ""
+        }
+
+        self.oneview_client.clone_template_and_apply(
+            server_profile_name,
+            server_hardware_uuid,
+            server_profile_template_uuid
+        )
+
+        mock__prepare.assert_called_with(
+            uri=client.SERVER_PROFILE_PREFIX_URI,
+            body=second_server_profile_json,
+            request_type=client.POST_REQUEST_TYPE
+        )
+
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    @mock.patch.object(client.Client, '_prepare_and_do_request')
+    @mock.patch.object(client.Client, 'get_server_hardware')
+    def test_delete_server_profile_from_sh_with_missing_profile_uuid(
+        self, mock_get_server_hardware, mock__prepare_do_request,
+        mock__wait_for_task
+    ):
+
+        self.oneview_client._prepare_and_do_request = mock__prepare_do_request
+        self.oneview_client._wait_for_task_to_complete = mock__wait_for_task
+
+        self.assertRaises(
+            exceptions.OneViewMissingValueException,
+            self.oneview_client.delete_server_profile,
+            None
+        )
+
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    @mock.patch.object(client.Client, '_prepare_and_do_request')
+    @mock.patch.object(client.Client, 'get_server_hardware')
+    def test_delete_server_profile_from_sh_unassignment_error(
+        self, mock_get_server_hardware, mock__prepare_do_request,
+        mock__wait_for_task
+    ):
+
+        profile_to_be_deleted_uuid = '111111111-2222-3333-4444-55555555555'
+
+        fake_server_hardware = models.ServerHardware()
+        fake_server_hardware.server_profile_uri = \
+            '111111111-2222-3333-4444-55555555555'
+        mock_get_server_hardware.return_value = fake_server_hardware
+        self.oneview_client.get_server_hardware = mock_get_server_hardware
+
+        mock__wait_for_task.side_effect = exceptions.OneViewTaskError
+        self.oneview_client._wait_for_task_to_complete = mock__wait_for_task
+
+        self.assertRaises(
+            exceptions.OneviewServerProfileDeletionError,
+            self.oneview_client.delete_server_profile,
+            profile_to_be_deleted_uuid
+        )
+
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    @mock.patch.object(client.Client, '_prepare_and_do_request')
+    @mock.patch.object(client.Client, 'get_server_hardware')
+    def test_delete_server_profile_from_sh(
+        self, mock_get_server_hardware, mock__prepare_do_request,
+        mock__wait_for_task
+    ):
+
+        profile_to_be_deleted_uuid = '111111111-2222-3333-4444-55555555555'
+
+        fake_server_hardware = models.ServerHardware()
+        fake_server_hardware.server_profile_uri = \
+            '111111111-2222-3333-4444-55555555555'
+        mock_get_server_hardware.return_value = fake_server_hardware
+        self.oneview_client.get_server_hardware = mock_get_server_hardware
+
+        self.oneview_client._prepare_and_do_request = mock__prepare_do_request
+        self.oneview_client._wait_for_task_to_complete = mock__wait_for_task
+
+        self.oneview_client.delete_server_profile(profile_to_be_deleted_uuid)
+
+        self.assertTrue(mock__prepare_do_request.called)
+        self.assertTrue(mock__wait_for_task.called)
 
 if __name__ == '__main__':
     unittest.main()
