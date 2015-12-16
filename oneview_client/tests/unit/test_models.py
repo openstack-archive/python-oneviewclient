@@ -162,6 +162,7 @@ class Test(unittest.TestCase):
         sp = ServerProfile.from_json(json)
         server_profile_attribute_map = {
             'uri': 'uri',
+            'name': 'name',
             'serverProfileTemplateUri': 'server_profile_template_uri',
             'templateCompliance': 'template_compliance',
             'serverHardwareUri': 'server_hardware_uri',
