@@ -264,21 +264,24 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_power_on_server_off(self, mock_get_pstate, mock_set_pstate,
                                  mock__authenticate):
         driver_info = {"server_hardware_uri": "/any"}
-        mock_get_pstate.return_value = states.ONEVIEW_POWER_OFF
+        mock_get_pstate.return_value = states.ONEVIEW_POWERING_OFF
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
         oneview_client.power_on(driver_info)
         mock_get_pstate.assert_called_once_with(oneview_client, driver_info)
-        mock_set_pstate.assert_called_once_with(oneview_client, driver_info,
-                                                states.ONEVIEW_POWER_ON)
+        mock_set_pstate.assert_called_once_with(
+            oneview_client,
+            driver_info,
+            states.ONEVIEW_POWER_ON
+        )
 
     @mock.patch.object(client.Client, 'set_node_power_state', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
     def test_power_off_server_off(self, mock_get_pstate, mock_set_pstate,
                                   mock__authenticate):
         driver_info = {"server_hardware_uri": "/any"}
-        mock_get_pstate.return_value = states.ONEVIEW_POWER_OFF
+        mock_get_pstate.return_value = states.ONEVIEW_POWERING_OFF
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
@@ -297,9 +300,12 @@ class OneViewClientTestCase(unittest.TestCase):
                                        self.password)
         oneview_client.power_off(driver_info)
         mock_get_pstate.assert_called_once_with(oneview_client, driver_info)
-        mock_set_pstate.assert_called_once_with(oneview_client, driver_info,
-                                                states.ONEVIEW_POWER_OFF,
-                                                client.PRESS_AND_HOLD)
+        mock_set_pstate.assert_called_once_with(
+            oneview_client,
+            driver_info,
+            states.ONEVIEW_POWERING_OFF,
+            client.PRESS_AND_HOLD
+        )
 
     @mock.patch.object(client.Client, '_wait_for_task_to_complete',
                        autospec=True)
@@ -358,7 +364,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
-    def test_set_power_state_server_hardware_power_status_error(
+    def test_set_power_state_server_hardware_power_status_unknown(
         self, mock_get_node_power, mock__prepare_do_request, mock__authenticate
     ):
         power = states.ONEVIEW_ERROR
@@ -1177,6 +1183,41 @@ class OneViewClientTestCase(unittest.TestCase):
 
         yield status, headers, system, memberuri
 
+    @mock.patch.object(client.Client, 'get_server_hardware')
+    def test_check_server_profile_is_fully_applied_for_profile_applied(
+            self, mock_get_server_hardware, mock__authenticate):
+
+        server_hardware = ServerHardware()
+        server_hardware.state = states.ONEVIEW_PROFILE_APPLIED
+        mock_get_server_hardware.return_value = server_hardware
+
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        oneview_client.get_server_hardware = mock_get_server_hardware
+        self.assertEqual(
+            states.ONEVIEW_PROFILE_APPLIED,
+            oneview_client.get_server_hardware_state(None)
+        )
+
+    @mock.patch.object(client.Client, 'get_server_hardware')
+    def test_check_server_profile_is_fully_applied_for_applying_profile(
+            self, mock_get_server_hardware, mock__authenticate):
+
+        server_hardware = ServerHardware()
+        server_hardware.state = states.ONEVIEW_APPLYING_PROFILE
+        mock_get_server_hardware.return_value = server_hardware
+
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        oneview_client.get_server_hardware = mock_get_server_hardware
+        self.assertEqual(
+            states.ONEVIEW_APPLYING_PROFILE,
+            oneview_client.get_server_hardware_state(None)
+        )
 
 if __name__ == '__main__':
     unittest.main()
