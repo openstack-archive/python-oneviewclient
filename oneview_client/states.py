@@ -15,18 +15,22 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+SERVER_HARDWARE_POWER_ON = 'On'
 
-# Power states on OneView
-ONEVIEW_POWER_ON = 'On'
+SERVER_HARDWARE_POWER_OFF = 'Off'
 
-ONEVIEW_POWER_OFF = 'Off'
+SERVER_HARDWARE_POWERING_ON = 'PoweringOn'
 
-ONEVIEW_POWERING_ON = 'PoweringOn'
+SERVER_HARDWARE_POWERING_OFF = 'PoweringOff'
 
-ONEVIEW_POWERING_OFF = 'PoweringOff'
+SERVER_HARDWARE_RESETTING = 'Resetting'
 
-ONEVIEW_RESETTING = 'Resetting'
+SERVER_HARDWARE_UNKNOWN = 'Unknown'
 
+SERVER_HARDWARE_APPLYING_PROFILE = 'ApplyingProfile'
 
-# Error states
-ONEVIEW_ERROR = 'error'
+SERVER_HARDWARE_PROFILE_APPLIED = 'ProfileApplied'
+
+SERVER_HARDWARE_REMOVING_PROFILE = 'RemovingProfile'
+
+SERVER_HARDWARE_PROFILE_ERROR = 'ProfileError'
