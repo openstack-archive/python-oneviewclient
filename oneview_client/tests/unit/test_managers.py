@@ -72,3 +72,25 @@ class TestServerHardwareIndexManager(unittest.TestCase):
             obj.uri,
             "/rest/server-hardware/" + uuid
         )
+
+
+class TestServerProfileManager(unittest.TestCase):
+
+    @mock.patch.object(client, "ClientV2", autospec=True)
+    def test_delete(self, mock_client):
+        oneview_client = mock_client(manager_url='https://something',
+                                     username='user',
+                                     password='pass')
+        uuid = 'f2160e28-8107-45f9-b4b2-3119a622a3a1'
+
+        resource_json = oneview_client._prepare_and_do_request.return_value
+        server_profile_manager = managers.ServerProfileManager(oneview_client)
+        server_profile_manager.delete(uuid)
+
+        oneview_client._prepare_and_do_request.assert_called_once_with(
+            uri=managers.ServerProfileManager.uri_prefix + uuid,
+            request_type='DELETE'
+        )
+        oneview_client._wait_for_task_to_complete.assert_called_with(
+            resource_json
+        )
