@@ -16,7 +16,7 @@
 
 
 class OneViewObject(object):
-    """DO NOT INSTANTIATE. THIS IS AN ABSTRACT CLASS"""
+    """DO NOT INSTANTIATE. THIS IS AN ABSTRACT CLASS."""
 
     @classmethod
     def from_json(cls, json):
@@ -80,6 +80,7 @@ class ServerProfileTemplate(OneViewObject):
 class ServerProfile(OneViewObject):
     attribute_map = {
         'uri': 'uri',
+        'name': 'name',
         'serverProfileTemplateUri': 'server_profile_template_uri',
         'templateCompliance': 'template_compliance',
         'serverHardwareUri': 'server_hardware_uri',
@@ -93,14 +94,15 @@ class ServerProfile(OneViewObject):
     }
 
     @classmethod
-    def from_json(self, json_body):
+    def from_json(cls, json_body):
+        obj = cls()
         for attr_key in json_body.keys():
             attribute_value = json_body.get(attr_key)
-            attribute_map_value = self.attribute_map.get(attr_key)
+            attribute_map_value = obj.attribute_map.get(attr_key)
             if attribute_map_value is not None:
                 attr_key = attribute_map_value
-            setattr(self, attr_key, attribute_value)
-        return self
+            setattr(obj, attr_key, attribute_value)
+        return obj
 
     def to_oneview_dict(self):
         server_profile_dict = {}
