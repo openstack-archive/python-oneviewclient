@@ -16,7 +16,6 @@
 #    limitations under the License.
 
 
-# Power states on OneView
 ONEVIEW_POWER_ON = 'On'
 
 ONEVIEW_POWER_OFF = 'Off'
@@ -27,6 +26,14 @@ ONEVIEW_POWERING_OFF = 'PoweringOff'
 
 ONEVIEW_RESETTING = 'Resetting'
 
-
-# Error states
 ONEVIEW_ERROR = 'error'
+
+ONEVIEW_UNKNOWN = 'Unknown'
+
+ONEVIEW_APPLYING_PROFILE = 'ApplyingProfile'
+
+ONEVIEW_PROFILE_APPLIED = 'ProfileApplied'
+
+ONEVIEW_REMOVING_PROFILE = 'RemovingProfile'
+
+ONEVIEW_PROFILE_ERROR = 'ProfileError'

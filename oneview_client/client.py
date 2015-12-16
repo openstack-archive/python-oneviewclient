@@ -106,9 +106,9 @@ class Client(object):
 
     def verify_oneview_version(self):
         if not self._is_oneview_version_compatible():
-            raise exceptions.IncompatibleOneViewAPIVersion(
-                "The version of the OneView's API is unsupported. Supported "
-                "version is '%s'" % SUPPORTED_ONEVIEW_VERSION)
+            msg = ("The version of the OneView's API is unsupported. "
+                   "Supported version is '%s'" % SUPPORTED_ONEVIEW_VERSION)
+            raise exceptions.IncompatibleOneViewAPIVersion(msg)
 
     def _is_oneview_version_compatible(self):
         versions = self.get_oneview_version()
@@ -136,7 +136,8 @@ class Client(object):
         return self.get_server_hardware(node_info).power_state
 
     def power_on(self, node_info):
-        if self.get_node_power_state(node_info) == states.ONEVIEW_POWER_ON:
+        if self.get_node_power_state(node_info) == \
+           states.ONEVIEW_POWER_ON:
             ret = states.ONEVIEW_POWER_ON
         else:
             ret = self.set_node_power_state(
@@ -145,11 +146,12 @@ class Client(object):
         return ret
 
     def power_off(self, node_info):
-        if self.get_node_power_state(node_info) == states.ONEVIEW_POWER_OFF:
-            ret = states.ONEVIEW_POWER_OFF
+        if self.get_node_power_state(node_info) == \
+           states.ONEVIEW_POWERING_OFF:
+            ret = states.ONEVIEW_POWERING_OFF
         else:
             ret = self.set_node_power_state(
-                node_info, states.ONEVIEW_POWER_OFF, PRESS_AND_HOLD
+                node_info, states.ONEVIEW_POWERING_OFF, PRESS_AND_HOLD
             )
         return ret
 
@@ -178,11 +180,14 @@ class Client(object):
 
         return current_state
 
-    # --- ManagementDriver ---
+    # --- Management Driver ---
     def get_server_hardware(self, node_info):
         uuid = node_info['server_hardware_uri'].split("/")[-1]
-
         return self.get_server_hardware_by_uuid(uuid)
+
+    def get_server_hardware_state(self, node_info):
+        server_hardware = self.get_server_hardware(node_info)
+        return server_hardware.state
 
     def get_server_hardware_by_uuid(self, uuid):
         server_hardware_uri = SERVER_HARDWARE_PREFIX_URI + str(uuid)
@@ -219,7 +224,6 @@ class Client(object):
 
     def get_server_profile_template(self, node_info):
         uuid = node_info['server_profile_template_uri'].split("/")[-1]
-
         return self.get_server_profile_template_by_uuid(uuid)
 
     def get_server_profile_template_by_uuid(self, uuid):
@@ -243,9 +247,9 @@ class Client(object):
         return server_profile.boot.get("order")
 
     def _update_boot_order(self, server_profile, order):
-        manageBoot = server_profile.boot.get("manageBoot")
+        manage_boot = server_profile.boot.get("manageBoot")
         server_profile.boot = {
-            "manageBoot": manageBoot,
+            "manageBoot": manage_boot,
             "order": order
         }
         return server_profile
@@ -264,13 +268,18 @@ class Client(object):
         server_profile = self.get_server_profile_from_hardware(
             node_info
         )
+#        server_profile_updated = self._update_boot_order(
+#            server_profile,
+#            boot_order
+#        )
 
-        server_profile_updated = self._update_boot_order(
-            server_profile,
-            boot_order
-        )
+        manage_boot = server_profile.boot.get("manageBoot")
+        server_profile.boot = {
+            "manageBoot": manage_boot,
+            "order": boot_order
+        }
 
-        boot_order_dict = server_profile_updated.to_oneview_dict()
+        boot_order_dict = server_profile.to_oneview_dict()
 
         task = self._prepare_and_do_request(
             uri=server_profile.uri, body=boot_order_dict,
@@ -281,7 +290,31 @@ class Client(object):
         except exceptions.OneViewTaskError as e:
             raise exceptions.OneViewErrorSettingBootDevice(e.message)
 
-    # ---- Node validate ----
+    # ---- Deploy Driver ----
+    def apply_server_profile(self, server_profile_name, node_info):
+        node_sh_uri = node_info.get('server_hardware_uri')
+        node_spt_uri = node_info.get('server_profile_template_uri')
+
+        generate_new_profile_uri = (
+            '%(node_spt_uri)s/new-profile' % {'node_spt_uri': node_spt_uri}
+        )
+        server_profile_from_template_json = self._prepare_and_do_request(
+            uri=generate_new_profile_uri
+        )
+        server_profile_from_template_json['serverHardwareUri'] = node_sh_uri
+        server_profile_from_template_json['name'] = server_profile_name
+
+        post_profile_task = self._prepare_and_do_request(
+            uri='/rest/server-profiles',
+            body=server_profile_from_template_json,
+            request_type=POST_REQUEST_TYPE
+        )
+        try:
+            self._wait_for_task_to_complete(post_profile_task)
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewServerProfileAssignmentError(e.message)
+
+    # ---- Node Validate ----
     def validate_node_server_hardware(
         self, node_info, node_memorymb, node_cpus
     ):
@@ -340,6 +373,20 @@ class Client(object):
                     }
                 )
                 raise exceptions.OneViewInconsistentResource(message)
+
+    def delete_server_profile_from_server_hardware(self, node_info):
+        server_hardware = self.get_server_hardware(node_info)
+        server_profile_uri = server_hardware.server_profile_uri
+        if server_profile_uri:
+            delete_profile_task = self._prepare_and_do_request(
+                uri=server_profile_uri, request_type=DELETE_REQUEST_TYPE
+            )
+            try:
+                self._wait_for_task_to_complete(delete_profile_task)
+            except exceptions.OneViewTaskError as e:
+                raise exceptions.OneViewServerProfileAssignmentError(
+                    e.message
+                )
 
     def is_node_port_mac_compatible_with_server_profile(
         self, node_info, ports
@@ -529,11 +576,11 @@ class Client(object):
                 if error_code == "RESOURCE_NOT_FOUND":
                     raise exceptions.OneViewResourceNotFoundError(details)
                 else:
-                    raise exceptions.OneViewTaskError("%s - %s"
-                                                      % (error_code, details))
+                    message = "%s - %s" % (error_code, details)
+                    raise exceptions.OneViewTaskError(message)
             elif task_state.lower() == 'error':
-                raise exceptions.OneViewTaskError("The task '%s' returned an "
-                                                  "error state" % uri)
+                message = "The task '%s' returned an error state" % uri
+                raise exceptions.OneViewTaskError(message)
             return task
         return wait(task)
 
@@ -570,9 +617,7 @@ def _check_request_status(response):
         time.sleep(10)
         repeat = True
     elif status == 500:
-        raise exceptions.OneViewInternalServerError(
-            "OneView returned HTTP 500"
-        )
+        raise exceptions.OneViewInternalServerError()
     # Any other unexpected status are logged
     elif status not in (200, 202,):
         message = (
