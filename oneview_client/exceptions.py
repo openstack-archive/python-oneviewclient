@@ -28,7 +28,7 @@ class OneViewException(Exception):
 
 
 class OneViewConnectionError(OneViewException):
-    message = ("Can't connect to OneView")
+    message = ("Can't connect to OneView.")
 
 
 class OneViewNotAuthorizedException(OneViewException):
@@ -36,59 +36,55 @@ class OneViewNotAuthorizedException(OneViewException):
 
 
 class OneViewResourceNotFoundError(OneViewException):
-    message = ("Resource not found in OneView")
-
-
-class OneViewServerProfileTemplateError(OneViewException):
-    message = ("Server Profile Template not found in the node's driver_info")
-
-
-class OneViewMaxPollingAttemptsExceededError(OneViewException):
-    message = ("Max polling attempts to OneView exceeded")
+    message = ("Resource not found in OneView.")
 
 
 class OneViewBootDeviceInvalidError(OneViewException):
-    message = ("Device selected is not a valid boot device")
+    message = ("Device selected is not a valid boot device.")
 
 
 class OneViewServerProfileAssociatedError(OneViewException):
     message = ("There is no Server Profile assigned to this Server"
-               " Hardware")
+               " Hardware.")
 
 
 class OneViewErrorStateSettingPowerState(OneViewException):
     message = ("Server Hardware went to error state when trying to change"
-               " power state")
+               " power state.")
 
 
 class OneViewErrorSettingBootDevice(OneViewException):
     message = ("Server Hardware went to error state when trying to change"
-               " the primary boot device")
+               " the primary boot device.")
 
 
 class OneViewTaskError(OneViewException):
-    message = ("The task for this action in OneView returned an error state")
+    message = ("The task for this action in OneView returned an error state.")
 
 
 class OneViewInconsistentResource(OneViewException):
-    message = ("The resource is inconsistent with its OneView counterpart")
+    message = ("The resource is inconsistent with its OneView counterpart.")
 
 
 class OneViewInternalServerError(OneViewException):
-    message = ("OneView returned HTTP 500")
+    message = ("OneView returned HTTP 500.")
 
 
-class OneViewHealthStatusError(OneViewException):
-    message = ("There is a health status issue with an OneView Server Profile")
+class OneViewServerProfileAssignmentError(OneViewException):
+    message = ("Something went wrong while assigning Server Profile.")
 
 
 class IncompatibleOneViewAPIVersion(OneViewException):
-    message = ("The version of OneView's API is unsupported")
+    message = ("The version of OneView's API is unsupported.")
 
 
 class UnknowOneViewResponseError(OneViewException):
-    message = ("OneView appliance returned an unknown response status")
+    message = ("OneView appliance returned an unknown response status.")
 
 
 class IloException(OneViewException):
-    message = ("Unknown response from iLO")
+    message = ("Unknown response from iLO.")
+
+
+class OneViewServerProfileDeletionError(OneViewException):
+    message = ("There was an error deleting this Server Profile.")

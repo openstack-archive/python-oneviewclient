@@ -26,17 +26,6 @@ from oneview_client import models
 from oneview_client.tests import fixtures
 
 
-PROPERTIES_DICT = {"cpu_arch": "x86_64",
-                   "cpus": "8",
-                   "local_gb": "10",
-                   "memory_mb": "4096",
-                   "capabilities": "server_hardware_type_uri:fake_sht_uri,"
-                                   "enclosure_group_uri:fake_eg_uri"}
-
-DRIVER_INFO_DICT = {'server_hardware_uri': 'fake_sh_uri',
-                    'server_profile_template_uri': 'fake_spt_uri'}
-
-
 @mock.patch.object(client.Client, '_authenticate', autospec=True)
 class OneViewClientTestCase(unittest.TestCase):
 
@@ -116,7 +105,7 @@ class OneViewClientTestCase(unittest.TestCase):
         self.assertIsInstance(spt, models.ServerProfileTemplate)
 
     @mock.patch.object(requests, 'get', autospec=True)
-    def test_server_profile_template_get_not_found(self, mock_get,
+    def test_get_server_profile_template_not_found(self, mock_get,
                                                    mock__authenticate):
         oneview_client = client.Client(self.manager_url,
                                        self.username,
@@ -217,6 +206,39 @@ class OneViewClientTestCase(unittest.TestCase):
             exceptions.OneViewResourceNotFoundError,
             oneview_client._server_profile.get,
             'aaaa-bbbb-cccc'
+        )
+
+    def test_server_profile_create(self, mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        self.assertRaises(
+            NotImplementedError,
+            oneview_client._server_profile.create,
+            name='something',
+            description='somethingelse',
+            something=0
+        )
+
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    @mock.patch.object(requests, 'delete', autospec=True)
+    def test_delete_server_profile(self,
+                                   mock_delete,
+                                   mock__wait_for_task,
+                                   mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        response = mock_delete.return_value
+        response.status_code = http_client.OK
+        oneview_client._wait_for_task_to_complete = mock__wait_for_task
+
+        oneview_client.delete_server_profile('1111-2222-3333')
+
+        mock_delete.assert_called_once_with(
+            url='https://1.2.3.4/rest/server-profiles/1111-2222-3333',
+            headers=mock.ANY,
+            verify=True
         )
 
 
@@ -366,7 +388,6 @@ class OneViewClientV2TestCase(unittest.TestCase):
             'aaaa-bbbb-cccc'
         )
 
-    ##########################################################
     @mock.patch.object(requests, 'get', autospec=True)
     def test_server_profile_template_list(self, mock_get, mock__authenticate):
         oneview_client = client.ClientV2(self.manager_url,
@@ -516,14 +537,25 @@ class OneViewClientV2TestCase(unittest.TestCase):
             something=0
         )
 
-    def test_server_profile_delete(self, mock__authenticate):
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    @mock.patch.object(requests, 'delete', autospec=True)
+    def test_server_profile_delete(self,
+                                   mock_delete,
+                                   mock__wait_for_task,
+                                   mock__authenticate):
         oneview_client = client.ClientV2(self.manager_url,
                                          self.username,
                                          self.password)
-        self.assertRaises(
-            NotImplementedError,
-            oneview_client.server_profile.delete,
-            'aaaa-bbbb-cccc'
+        response = mock_delete.return_value
+        response.status_code = http_client.OK
+        oneview_client._wait_for_task_to_complete = mock__wait_for_task
+
+        oneview_client.server_profile.delete('1111-2222-3333')
+
+        mock_delete.assert_called_once_with(
+            url='https://1.2.3.4/rest/server-profiles/1111-2222-3333',
+            headers=mock.ANY,
+            verify=True
         )
 
 

@@ -17,12 +17,8 @@
 
 import unittest
 
-from oneview_client.models import Enclosure
-from oneview_client.models import EnclosureGroup
-from oneview_client.models import ServerHardware
-from oneview_client.models import ServerHardwareType
-from oneview_client.models import ServerProfile
-from oneview_client.models import ServerProfileTemplate
+from oneview_client import models
+from oneview_client.tests import fixtures
 
 
 class Test(unittest.TestCase):
@@ -35,7 +31,7 @@ class Test(unittest.TestCase):
             'enclosureTypeUri': 'something1',
             'status': 'something2',
         }
-        eg = EnclosureGroup.from_json(json)
+        eg = models.EnclosureGroup.from_json(json)
         enclosure_group_attribute_map = {
             'uri': 'uri',
             'uuid': 'uuid',
@@ -58,7 +54,7 @@ class Test(unittest.TestCase):
             'logicalEnclosureUri': 'something3',
             'status': 'something4',
         }
-        encl = Enclosure.from_json(json)
+        encl = models.Enclosure.from_json(json)
         enclosure_attribute_map = {
             'uri': 'uri',
             'enclosureTypeUri': 'enclosure_type_uri',
@@ -77,7 +73,7 @@ class Test(unittest.TestCase):
             'uuid': 'aaaa-bbbb-cccc',
             'name': 'my-server-hardware-type'
         }
-        sht = ServerHardwareType.from_json(json)
+        sht = models.ServerHardwareType.from_json(json)
         sht_attribute_map = {
             'uri': 'uri',
             'uuid': 'uuid',
@@ -100,11 +96,12 @@ class Test(unittest.TestCase):
             'serverHardwareTypeUri': 'something2',
             'serverGroupUri': 'something3',
             'status': 'something4',
-            'stateReason': 'something5',
-            'locationUri': 'something6',
-            'processorCount': 'something7',
-            'processorCoreCount': 'something8',
-            'memoryMb': 'something9',
+            'state': 'something5',
+            'stateReason': 'something6',
+            'locationUri': 'something7',
+            'processorCount': 'something8',
+            'processorCoreCount': 'something9',
+            'memoryMb': 'something10',
             'mpHostInfo': {
                 'mpHostName': '172.18.6.18',
                 'mpIpAddresses': [{
@@ -113,7 +110,7 @@ class Test(unittest.TestCase):
                 }]
             }
         }
-        sh = ServerHardware.from_json(json)
+        sh = models.ServerHardware.from_json(json)
         sh_attribute_map = {
             'uri': 'uri',
             'uuid': 'uuid',
@@ -123,6 +120,7 @@ class Test(unittest.TestCase):
             'serverHardwareTypeUri': 'server_hardware_type_uri',
             'serverGroupUri': 'enclosure_group_uri',
             'status': 'status',
+            'state': 'state',
             'stateReason': 'state_reason',
             'locationUri': 'enclosure_uri',
             'processorCount': 'processor_count',
@@ -136,7 +134,8 @@ class Test(unittest.TestCase):
         self.assertEqual(sh.uuid, '1111-2222-3333-4444')
         self.assertEqual(sh.name, 'my-server-profile')
         self.assertEqual(sh.power_state, 'Powered On')
-        self.assertEqual(sh.state_reason, 'something5')
+        self.assertEqual(sh.state, 'something5')
+        self.assertEqual(sh.state_reason, 'something6')
         self.assertIsNone(sh.server_profile_uri)
         self.assertFalse(hasattr(sh, 'something_not_defined'))
         self.assertDictContainsSubset(
@@ -155,7 +154,7 @@ class Test(unittest.TestCase):
             'serverHardwareTypeUri': 'something1',
             'enclosureGroupUri': 'something2',
         }
-        spt = ServerProfileTemplate.from_json(json)
+        spt = models.ServerProfileTemplate.from_json(json)
         spt_attribute_map = {
             'uri': 'uri',
             'uuid': 'uuid',
@@ -184,9 +183,10 @@ class Test(unittest.TestCase):
             'boot': 'something',
             'sanStorage': 'something',
         }
-        sp = ServerProfile.from_json(json)
+        sp = models.ServerProfile.from_json(json)
         server_profile_attribute_map = {
             'uri': 'uri',
+            'name': 'name',
             'serverProfileTemplateUri': 'server_profile_template_uri',
             'templateCompliance': 'template_compliance',
             'serverHardwareUri': 'server_hardware_uri',
@@ -204,7 +204,15 @@ class Test(unittest.TestCase):
         self.assertFalse(hasattr(sp, 'something_not_defined'))
 
     def test_serverprofile_to_oneview_dict(self):
-        profile = ServerProfile()
+        profile = models.ServerProfile()
         profile.uri = 'http://somehting.com/111-222-333-444'
         self.assertEqual(profile.to_oneview_dict(),
                          {'uri': 'http://somehting.com/111-222-333-444'})
+
+    def test_get_mac_from_server_hardware(self):
+        server_hardware = models.ServerHardware()
+        server_hardware.port_map = fixtures.PORT_MAP
+        self.assertEqual("d8:9d:67:73:54:00", server_hardware.get_mac())
+
+if __name__ == '__main__':
+    unittest.main()

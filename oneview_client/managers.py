@@ -22,7 +22,6 @@ import six
 from oneview_client import exceptions
 from oneview_client import models
 
-
 ONEVIEW_POWER_ON = 'On'
 ONEVIEW_POWER_OFF = 'Off'
 
@@ -211,8 +210,21 @@ class ServerProfileManager(OneViewManager):
                                   "created.")
 
     def delete(self, uuid):
-        raise NotImplementedError("ServerProfile isn't supposed to be "
-                                  "deleted.")
+        if not uuid:
+            raise ValueError('Missing Server Profile uuid.')
+
+        resource_uri = self.uri_prefix + str(uuid)
+        resource_json = self.oneview_client._prepare_and_do_request(
+            uri=resource_uri,
+            request_type='DELETE'
+        )
+
+        try:
+            self.oneview_client._wait_for_task_to_complete(
+                resource_json
+            )
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewServerProfileDeletionError(e.message)
 
 
 class ServerProfileTemplateManager(OneViewManager):
