@@ -28,7 +28,7 @@ from oneview_client import states
 
 SUPPORTED_ONEVIEW_VERSION = 200
 
-WAIT_DO_REQUEST_IN_MILLISECONDS = 100
+WAIT_DO_REQUEST_IN_MILLISECONDS = 1000
 WAIT_TASK_IN_MILLISECONDS = 1000
 
 GET_REQUEST_TYPE = 'GET'
@@ -484,7 +484,6 @@ class Client(object):
 
     def _wait_for_task_to_complete(self, task):
         @retrying.retry(
-            stop_max_attempt_number=self.max_polling_attempts,
             retry_on_result=lambda task: task.get('percentComplete') < 100,
             wait_fixed=WAIT_TASK_IN_MILLISECONDS,
             retry_on_exception=lambda task: False
@@ -517,7 +516,7 @@ def _check_request_status(response):
         raise exceptions.OneViewNotAuthorizedException()
     elif status == 404:
         raise exceptions.OneViewResourceNotFoundError()
-    elif status in (409,):
+    elif status in (408, 409,):
         time.sleep(10)
         repeat = True
     elif status == 500:
