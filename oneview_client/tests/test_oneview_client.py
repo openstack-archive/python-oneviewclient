@@ -15,6 +15,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from datetime import datetime
 import json
 
 import mock
@@ -502,18 +503,23 @@ class OneViewClientTestCase(unittest.TestCase):
             "taskState": "Something",
             "percentComplete": 30
         }
-
+        TIMEOUT_IN_SECONDS = 3
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password,
-                                       max_polling_attempts=1)
+                                       polling_timeout=TIMEOUT_IN_SECONDS)
 
         mock__prepare_do_request.return_value = task
+        t1 = datetime.now()
         self.assertRaises(
             retrying.RetryError,
             oneview_client._wait_for_task_to_complete,
             task,
         )
+        t2 = datetime.now()
+        self.assertAlmostEqual((t2 - t1).total_seconds(),
+                               TIMEOUT_IN_SECONDS,
+                               1)
 
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_hardware_inconsistent_memorymb_value(
