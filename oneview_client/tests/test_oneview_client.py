@@ -19,7 +19,6 @@ import json
 
 import mock
 import requests
-import retrying
 import six.moves.http_client as http_client
 import unittest
 
@@ -480,7 +479,26 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     def test__wait_for_task_to_complete(self, mock__prepare_do_request,
                                         mock__authenticate):
-        task = {
+
+        task0 = {
+            "uri": "/any_uri",
+            "taskState": "Something",
+            "percentComplete": 0
+        }
+
+        task1 = {
+            "uri": "/any_uri",
+            "taskState": "Something",
+            "percentComplete": 10
+        }
+
+        task2 = {
+            "uri": "/any_uri",
+            "taskState": "Something",
+            "percentComplete": 50
+        }
+
+        task3 = {
             "uri": "/any_uri",
             "taskState": "Something",
             "percentComplete": 100
@@ -491,26 +509,27 @@ class OneViewClientTestCase(unittest.TestCase):
                                        self.password,
                                        max_polling_attempts=1)
 
-        mock__prepare_do_request.return_value = task
-        oneview_client._wait_for_task_to_complete(task)
+        mock__prepare_do_request.side_effect = [task1, task2, task3]
+        oneview_client._wait_for_task_to_complete(task0)
 
-    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
-    def test__wait_for_task_to_complete_timeout(self, mock__prepare_do_request,
+    @mock.patch.object(requests, 'get')
+    def test__wait_for_task_to_complete_timeout(self, mock_get,
                                                 mock__authenticate):
         task = {
             "uri": "/any_uri",
             "taskState": "Something",
-            "percentComplete": 30
+            "percentComplete": 0
         }
-
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password,
                                        max_polling_attempts=1)
 
-        mock__prepare_do_request.return_value = task
+        response = mock_get.return_value
+        response.status_code = http_client.REQUEST_TIMEOUT
+        mock_get.return_value = response
         self.assertRaises(
-            retrying.RetryError,
+            exceptions.UnknowOneViewResponseError,
             oneview_client._wait_for_task_to_complete,
             task,
         )
