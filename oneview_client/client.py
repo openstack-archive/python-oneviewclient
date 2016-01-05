@@ -45,7 +45,7 @@ class Client(object):
     def __init__(
         self, manager_url, username, password,
         allow_insecure_connections=False, tls_cacert_file='',
-        max_polling_attempts=20
+        max_polling_attempts=None, polling_timeout=120
     ):
         self.manager_url = manager_url
         self.username = username
@@ -53,6 +53,7 @@ class Client(object):
         self.allow_insecure_connections = allow_insecure_connections
         self.tls_cacert_file = tls_cacert_file
         self.max_polling_attempts = max_polling_attempts
+        self.polling_timeout = polling_timeout
 
         self.session_id = self.get_session()
 
@@ -458,6 +459,7 @@ class Client(object):
 
         @retrying.retry(
             stop_max_attempt_number=self.max_polling_attempts,
+            stop_max_delay=(self.polling_timeout * 1000),
             retry_on_result=lambda response: _check_request_status(response),
             wait_fixed=WAIT_DO_REQUEST_IN_MILLISECONDS
         )
@@ -485,6 +487,7 @@ class Client(object):
     def _wait_for_task_to_complete(self, task):
         @retrying.retry(
             stop_max_attempt_number=self.max_polling_attempts,
+            stop_max_delay=(self.polling_timeout * 1000),
             retry_on_result=lambda task: task.get('percentComplete') < 100,
             wait_fixed=WAIT_TASK_IN_MILLISECONDS,
             retry_on_exception=lambda task: False
