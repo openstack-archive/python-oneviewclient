@@ -19,6 +19,13 @@
 class OneViewException(Exception):
     message = ("An error occurred in the OneView client.")
 
+    def __init__(self, msg=None):
+        if msg:
+            self.message = msg
+
+    def __str__(self):
+        return "<%s> %s" % (self.__class__.__name__, self.message)
+
 
 class OneViewConnectionError(OneViewException):
     message = ("Can't connect to OneView")
