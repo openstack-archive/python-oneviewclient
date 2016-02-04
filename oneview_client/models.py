@@ -95,16 +95,6 @@ class ServerProfile(OneViewObject):
         'sanStorage': 'san_storage',
     }
 
-    @classmethod
-    def from_json(self, json_body):
-        for attr_key in json_body.keys():
-            attribute_value = json_body.get(attr_key)
-            attribute_map_value = self.attribute_map.get(attr_key)
-            if attribute_map_value is not None:
-                attr_key = attribute_map_value
-            setattr(self, attr_key, attribute_value)
-        return self
-
     def to_oneview_dict(self):
         server_profile_dict = {}
         for attr_key in self.__dict__.keys():
