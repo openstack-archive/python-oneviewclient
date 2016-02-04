@@ -381,7 +381,7 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     def test_get_server_hardware_nonexistent(self, mock__prepare_do_request,
                                              mock__authenticate):
-        mock__prepare_do_request.return_value = {"error": "resource not found"}
+        mock__prepare_do_request.return_value = {}
         driver_info = {"server_hardware_uri": ""}
 
         oneview_client = client.Client(self.manager_url,
@@ -392,6 +392,37 @@ class OneViewClientTestCase(unittest.TestCase):
             exceptions.OneViewResourceNotFoundError,
             oneview_client.get_server_hardware,
             driver_info
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_get_server_hardware_nonexistent_by_uuid(
+        self, mock__prepare_do_request, mock__authenticate
+    ):
+        mock__prepare_do_request.return_value = {}
+        uuid = 0
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            oneview_client.get_server_hardware_by_uuid,
+            uuid
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_get_server_hardware_existent_by_uuid(
+        self, mock__prepare_do_request, mock__authenticate
+    ):
+        mock__prepare_do_request.return_value = {
+            "uri": "/rest/server-hardware/555"
+        }
+        uuid = 555
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        oneview_client.get_server_hardware_by_uuid(uuid)
+        mock__prepare_do_request.assert_called_once_with(
+            oneview_client, uri="/rest/server-hardware/555"
         )
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
@@ -475,6 +506,37 @@ class OneViewClientTestCase(unittest.TestCase):
             oneview_client.set_boot_device,
             driver_info,
             new_first_boot_device
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_get_server_profile_template_nonexistent_by_uuid(
+        self, mock__prepare_do_request, mock__authenticate
+    ):
+        mock__prepare_do_request.return_value = {}
+        uuid = 0
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            oneview_client.get_server_profile_template_by_uuid,
+            uuid
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_get_server_profile_template_existent_by_uuid(
+        self, mock__prepare_do_request, mock__authenticate
+    ):
+        mock__prepare_do_request.return_value = {
+            "uri": "/rest/server-profile-template/123"
+        }
+        uuid = 123
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        oneview_client.get_server_profile_template_by_uuid(uuid)
+        mock__prepare_do_request.assert_called_once_with(
+            oneview_client, uri="/rest/server-profile-template/123"
         )
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
