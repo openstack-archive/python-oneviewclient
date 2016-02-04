@@ -395,6 +395,25 @@ class OneViewClientTestCase(unittest.TestCase):
         )
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_get_server_hardware_nonexistent_by_uuid(self, mock__prepare_do_request,
+                                             mock__authenticate):
+        mock__prepare_do_request.return_value = {"error": "resource not found"}
+        #driver_info = {"server_hardware_uri": ""}
+        uuid = 0
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        #self.fail(help(oneview_client))
+        #oneview_client.get_server_hardware_by_uuid(0)
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            oneview_client.get_server_hardware_by_uuid,
+            uuid
+        )
+
+
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware',
                        autospec=True)
     def test_set_boot_device_nonexistent_resource_uri(self,
