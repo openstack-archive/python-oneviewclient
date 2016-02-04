@@ -176,13 +176,21 @@ class Client(object):
 
     # --- ManagementDriver ---
     def get_server_hardware(self, node_info):
-        server_hardware_uri = node_info.get('server_hardware_uri')
+        INDEX_BEGIN_UUID = len("/rest/server-hardware/") - 1
+        server_hardware_uri = node_info['server_hardware_uri']
+        uuid = server_hardware_uri[INDEX_BEGIN_UUID:]
+        
+        return self.get_server_hardware_by_uuid(uuid)
+ 
+    def get_server_hardware_by_uuid(self, uuid):
+        server_hardware_uri = "/rest/server-hardware/" + str(uuid)
         server_hardware_json = self._prepare_and_do_request(
             uri=server_hardware_uri
         )
         if server_hardware_json.get("uri") is None:
             message = "OneView Server Hardware resource not found."
             raise exceptions.OneViewResourceNotFoundError(message)
+
         return ServerHardware.from_json(server_hardware_json)
 
     def get_server_profile_from_hardware(self, node_info):
@@ -207,10 +215,8 @@ class Client(object):
 
         return ServerProfile.from_json(server_profile_json)
 
-    def get_server_profile_template(self, node_info):
-        server_profile_template_uri = (
-            node_info.get('server_profile_template_uri')
-        )
+    def get_server_profile_template_by_uuid(self, uuid):
+        server_profile_template_uri = "/rest/server-profile-template/" + str(uuid)
         spt_json = self._prepare_and_do_request(
             uri=server_profile_template_uri
         )
@@ -220,6 +226,14 @@ class Client(object):
             raise exceptions.OneViewResourceNotFoundError(message)
 
         return ServerProfileTemplate.from_json(spt_json)
+
+    def get_server_profile_template(self, node_info):
+        INDEX_BEGIN_UUID = len("/rest/server-profile-template/") - 1
+        server_hardware_uri = node_info['server_profile_template_uri']
+        uuid = server_hardware_uri[INDEX_BEGIN_UUID:]
+       
+        return self.get_server_profile_template_by_uuid(uuid)
+
 
     def get_boot_order(self, node_info):
         server_profile = self.get_server_profile_from_hardware(
