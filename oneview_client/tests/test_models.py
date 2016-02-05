@@ -87,6 +87,13 @@ class Test(unittest.TestCase):
             'processorCount': 'something7',
             'processorCoreCount': 'something8',
             'memoryMb': 'something9',
+            'mpHostInfo': {
+                'mpHostName': '172.18.6.18',
+                'mpIpAddresses': [{
+                    'address': '172.18.6.18',
+                    'type': 'Undefined'
+                }]
+            },
         }
         sh = ServerHardware.from_json(json)
         sh_attribute_map = {
@@ -102,6 +109,7 @@ class Test(unittest.TestCase):
             'processorCoreCount': 'processor_core_count',
             'memoryMb': 'memory_mb',
             'portMap': 'port_map',
+            'mpHostInfo': 'host_info'
         }
         self.assertEqual(sh.attribute_map, sh_attribute_map)
         self.assertEqual(sh.uri, 'http://something.com/1111-2222-3333-4444')
