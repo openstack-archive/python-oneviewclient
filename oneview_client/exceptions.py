@@ -84,3 +84,7 @@ class IncompatibleOneViewAPIVersion(OneViewException):
 
 class UnknowOneViewResponseError(OneViewException):
     message = ("OneView appliance returned an unknown response status")
+
+
+class IloException(OneViewException):
+    message = ("Unknown response from iLO")

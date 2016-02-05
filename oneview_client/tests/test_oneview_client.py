@@ -739,6 +739,7 @@ class OneViewClientTestCase(unittest.TestCase):
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock, "uri", "/anyuri")
+        setattr(server_hardware_mock, "uuid", "1111-2222-3333")
         server_hardware_mock_port_map = PORT_MAP
         setattr(server_hardware_mock,
                 "port_map",
@@ -764,6 +765,7 @@ class OneViewClientTestCase(unittest.TestCase):
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock, "uri", "/anyuri")
+        setattr(server_hardware_mock, "uuid", "1111-2222-3333")
         server_hardware_mock_port_map = PORT_MAP
         setattr(server_hardware_mock,
                 "port_map",
@@ -1090,6 +1092,42 @@ class OneViewClientTestCase(unittest.TestCase):
             node_info,
             ports
         )
+
+    @mock.patch('oneview_client.ilo_utils.collection', autospec=True)
+    @mock.patch('oneview_client.ilo_utils.ilo_logout', autospec=True)
+    @mock.patch.object(client.Client, 'get_ilo_access')
+    @mock.patch.object(requests, 'get')
+    def test_get_sh_mac_from_ilo(
+        self, mock_get, mock_get_ilo_access, mock_ilo_logout, mock_collection,
+        mock__authenticate
+    ):
+        defined_mac = "aa:bb:cc:dd:ee:ff"
+        sh_uuid = 'aaa-bbb-ccc'
+        my_host = 'https://my-host'
+        key = '123'
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+        mock_collection.return_value = \
+            self.create_collection_for_sh_mac_from_ilo_test()
+        mock_get_ilo_access.return_value = (my_host, key)
+        mac = oneview_client.get_sh_mac_from_ilo(sh_uuid)
+        mock_get_ilo_access.assert_called_once_with(sh_uuid)
+        mock_ilo_logout.assert_called_once_with(my_host, key)
+        self.assertEqual(mac, defined_mac)
+
+    def create_collection_for_sh_mac_from_ilo_test(self):
+        status = 200
+        headers = None
+        system = {'Type': 'ComputerSystem.0',
+                  'HostCorrelation': {'HostMACAddress':
+                                      ['aa:bb:cc:dd:ee:ff']}}
+        memberuri = 'xpto'
+
+        yield status, headers, system, memberuri
+
 
 if __name__ == '__main__':
     unittest.main()
