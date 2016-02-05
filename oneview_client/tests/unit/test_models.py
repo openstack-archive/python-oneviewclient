@@ -77,6 +77,7 @@ class Test(unittest.TestCase):
     def test_serverhardware_from_json(self):
         json = {
             'uri': 'http://something.com/1111-2222-3333-4444',
+            'uuid': '1111-2222-3333-4444',
             'powerState': 'Powered On',
             'serverProfileUri': 'something1',
             'serverHardwareTypeUri': 'something2',
@@ -87,10 +88,18 @@ class Test(unittest.TestCase):
             'processorCount': 'something7',
             'processorCoreCount': 'something8',
             'memoryMb': 'something9',
+            'mpHostInfo': {
+                'mpHostName': '172.18.6.18',
+                'mpIpAddresses': [{
+                    'address': '172.18.6.18',
+                    'type': 'Undefined'
+                }]
+            },
         }
         sh = ServerHardware.from_json(json)
         sh_attribute_map = {
             'uri': 'uri',
+            'uuid': 'uuid',
             'powerState': 'power_state',
             'serverProfileUri': 'server_profile_uri',
             'serverHardwareTypeUri': 'server_hardware_type_uri',
@@ -102,9 +111,11 @@ class Test(unittest.TestCase):
             'processorCoreCount': 'processor_core_count',
             'memoryMb': 'memory_mb',
             'portMap': 'port_map',
+            'mpHostInfo': 'host_info'
         }
         self.assertEqual(sh.attribute_map, sh_attribute_map)
         self.assertEqual(sh.uri, 'http://something.com/1111-2222-3333-4444')
+        self.assertEqual(sh.uuid, '1111-2222-3333-4444')
         self.assertEqual(sh.power_state, 'Powered On')
         self.assertEqual(sh.state_reason, 'something5')
 

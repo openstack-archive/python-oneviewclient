@@ -14,6 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oneview_client import exceptions
+
 
 class OneViewObject(object):
     """DO NOT INSTANTIATE. THIS IS AN ABSTRACT CLASS"""
@@ -56,6 +58,7 @@ class ServerHardwareType(OneViewObject):
 class ServerHardware(OneViewObject):
     attribute_map = {
         'uri': 'uri',
+        'uuid': 'uuid',
         'powerState': 'power_state',
         'serverProfileUri': 'server_profile_uri',
         'serverHardwareTypeUri': 'server_hardware_type_uri',
@@ -67,7 +70,18 @@ class ServerHardware(OneViewObject):
         'processorCoreCount': 'processor_core_count',
         'memoryMb': 'memory_mb',
         'portMap': 'port_map',
+        'mpHostInfo': 'host_info',
     }
+
+    def get_mac(self, index=0):
+        if self.port_map:
+            device = self.port_map.get('deviceSlots')[0]
+            physical_port = device.get('physicalPorts')[index]
+            return physical_port
+        else:
+            raise exceptions.OneViewException(
+                "There is no portMap on the Server Hardware requested. Is "
+                "this a DL server?")
 
 
 class ServerProfileTemplate(OneViewObject):
