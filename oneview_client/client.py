@@ -20,9 +20,8 @@ import requests
 import retrying
 
 from oneview_client import exceptions
-from oneview_client.models import ServerHardware
-from oneview_client.models import ServerProfile
-from oneview_client.models import ServerProfileTemplate
+from oneview_client import ilo_utils
+from oneview_client import managers
 from oneview_client import states
 
 
@@ -58,6 +57,13 @@ class Client(object):
         self.max_polling_attempts = max_polling_attempts
 
         self.session_id = self.get_session()
+        # Next generation
+        self.enclosure_group = managers.EnclosureGroupManager(self)
+        self.server_hardware = managers.ServerHardwareManager(self)
+        self.server_profile_template = managers.ServerProfileTemplateManager(
+            self
+        )
+        self.server_profile = managers.ServerProfileManager(self)
 
     def verify_credentials(self):
         return self._authenticate()
@@ -183,18 +189,10 @@ class Client(object):
         server_hardware_uri = node_info['server_hardware_uri']
         uuid = server_hardware_uri[INDEX_BEGIN_UUID:]
 
-        return self.get_server_hardware_by_uuid(uuid)
+        return self.server_hardware.get(uuid)
 
     def get_server_hardware_by_uuid(self, uuid):
-        server_hardware_uri = SERVER_HARDWARE_PREFIX_URI + str(uuid)
-        server_hardware_json = self._prepare_and_do_request(
-            uri=server_hardware_uri
-        )
-        if server_hardware_json.get("uri") is None:
-            message = "OneView Server Hardware resource not found."
-            raise exceptions.OneViewResourceNotFoundError(message)
-
-        return ServerHardware.from_json(server_hardware_json)
+        return self.server_hardware.get(uuid)
 
     def get_server_profile_from_hardware(self, node_info):
         server_hardware = self.get_server_hardware(node_info)
@@ -208,36 +206,19 @@ class Client(object):
             )
             raise exceptions.OneViewServerProfileAssociatedError(message)
 
-        server_profile_json = self._prepare_and_do_request(
-            uri=server_profile_uri
-        )
+        server_profile_uuid = server_profile_uri.split("/")[-1]
 
-        if server_profile_json.get('uri') is None:
-            message = "OneView Server Profile resource not found."
-            raise exceptions.OneViewResourceNotFoundError(message)
-
-        return ServerProfile.from_json(server_profile_json)
+        return self.server_profile.get(server_profile_uuid)
 
     def get_server_profile_template(self, node_info):
         INDEX_BEGIN_UUID = len(SERVER_PROFILE_TEMPLATE_PREFIX_URI) - 1
         server_hardware_uri = node_info['server_profile_template_uri']
         uuid = server_hardware_uri[INDEX_BEGIN_UUID:]
 
-        return self.get_server_profile_template_by_uuid(uuid)
+        return self.server_profile.get(uuid)
 
     def get_server_profile_template_by_uuid(self, uuid):
-        server_profile_template_uri = SERVER_PROFILE_TEMPLATE_PREFIX_URI \
-            + str(uuid)
-
-        spt_json = self._prepare_and_do_request(
-            uri=server_profile_template_uri
-        )
-
-        if spt_json.get("uri") is None:
-            message = "OneView Server Profile Template resource not found."
-            raise exceptions.OneViewResourceNotFoundError(message)
-
-        return ServerProfileTemplate.from_json(spt_json)
+        return self.server_profile_template.get(uuid)
 
     def get_boot_order(self, node_info):
         server_profile = self.get_server_profile_from_hardware(
@@ -383,8 +364,7 @@ class Client(object):
     ):
         server_hardware = self.get_server_hardware(node_info)
 
-        device = server_hardware.port_map.get('deviceSlots')[0]
-        first_physical_port = device.get('physicalPorts')[0]
+        first_physical_port = server_hardware.get_mac(index=0)
 
         is_mac_address_compatible = True
         for port in ports:
@@ -524,6 +504,26 @@ class Client(object):
                                                   "error state" % uri)
             return task
         return wait(task)
+
+    def _get_ilo_access(self, server_hardware_uuid):
+        uri = ("/rest/server-hardware/%s/remoteConsoleUrl"
+               % server_hardware_uuid)
+        json = self._prepare_and_do_request(uri)
+        url = json.get("remoteConsoleUrl")
+        ip_key = "addr="
+        host_ip = url[url.rfind(ip_key) + len(ip_key):]
+        host_ip = host_ip[:host_ip.find("&")]
+        session_key = "sessionkey="
+        token = url[url.rfind(session_key) + len(session_key):]
+
+        return host_ip, token
+
+    def get_sh_mac_from_ilo(self, server_hardware_uuid, index=0):
+        host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
+        try:
+            return ilo_utils.get_mac_for_ilo(host_ip, ilo_token, index)
+        finally:
+            ilo_utils.ilo_logout(host_ip, ilo_token)
 
 
 def _check_request_status(response):
