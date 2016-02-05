@@ -1091,5 +1091,18 @@ class OneViewClientTestCase(unittest.TestCase):
             ports
         )
 
+    @mock.patch.object(requests, 'get')
+    def test_get_sh_mac_from_ilo(self, mock_get, mock__authenticate):
+        defined_mac = "aa:bb:cc:dd:ee:ff"
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+        sh_uuid = 'aaa-bbb-ccc'
+        mac = oneview_client.get_sh_mac_from_ilo(sh_uuid)
+        self.assertEqual(mac, defined_mac)
+
+
 if __name__ == '__main__':
     unittest.main()
