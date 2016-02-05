@@ -1091,5 +1091,43 @@ class OneViewClientTestCase(unittest.TestCase):
             ports
         )
 
+    @mock.patch('oneview_client.ilo_utils.collection', autospec=True)
+    @mock.patch.object(client.Client, 'get_server_hardware_by_uuid')
+    @mock.patch.object(client.Client, 'get_ilo_sessionkey')
+    @mock.patch.object(requests, 'get')
+    def test_get_sh_mac_from_ilo(
+        self, mock_get, mock_get_ilo_sessionkey,
+        mock_get_server_hardware_by_uuid, mock_collection,
+        mock__authenticate
+    ):
+        defined_mac = "aa:bb:cc:dd:ee:ff"
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+        server_hardware_mock = ServerHardware()
+        setattr(server_hardware_mock,
+                'host_info', {'mpIpAddresses': [{'address': '10.10.0.2'}]})
+        mock_get_server_hardware_by_uuid.return_value = server_hardware_mock
+        mock_collection.return_value = \
+            self.create_collection_for_sh_mac_from_ilo_test()
+        mock_get_ilo_sessionkey.return_value = '123'
+        sh_uuid = 'aaa-bbb-ccc'
+        mac = oneview_client.get_sh_mac_from_ilo(sh_uuid)
+
+        self.assertEqual(mac, defined_mac)
+
+    def create_collection_for_sh_mac_from_ilo_test(self):
+        status = 200
+        headers = None
+        system = {'Type': 'ComputerSystem.0',
+                  'HostCorrelation': {'HostMACAddress':
+                                      ['aa:bb:cc:dd:ee:ff']}}
+        memberuri = 'xpto'
+
+        yield status, headers, system, memberuri
+
+
 if __name__ == '__main__':
     unittest.main()

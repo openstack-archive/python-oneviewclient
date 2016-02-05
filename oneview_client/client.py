@@ -20,6 +20,7 @@ import requests
 import retrying
 
 from oneview_client import exceptions
+from oneview_client import ilo_utils
 from oneview_client.models import ServerHardware
 from oneview_client.models import ServerProfile
 from oneview_client.models import ServerProfileTemplate
@@ -525,6 +526,29 @@ class Client(object):
             return task
         return wait(task)
 
+    def get_ilo_sessionkey(self, server_hardware_id):
+        uri = "/rest/server-hardware/%s/remoteConsoleUrl" % server_hardware_id
+        json = self._prepare_and_do_request(uri)
+        url = json.get("remoteConsoleUrl")
+        url_key = "sessionkey="
+        sessionkey = url[url.rfind(url_key) + len(url_key):]
+
+        return sessionkey
+
+    def get_sh_mac_from_ilo(self, server_hardware_id):
+        ilo_token = self.get_ilo_sessionkey(server_hardware_id)
+        server_hardware = self.get_server_hardware_by_uuid(server_hardware_id)
+        host_info = server_hardware.host_info
+        host_ip = host_info.get('mpIpAddresses')[0].get('address')
+
+        return ilo_utils.get_mac_for_ilo(host_ip, ilo_token)
+
+    # TODO(Caio) Compare the server models and choose different approches
+    # to get the MAC, for both cases (DL and BL)
+    def get_mac_from_server_hardware_uuid(self, server_hardware_id):
+        server_hardware = self.get_server_hardware_by_uuid(server_hardware_id)
+         
+        return 0
 
 def _check_request_status(response):
     repeat = False
