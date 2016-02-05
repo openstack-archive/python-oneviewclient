@@ -19,6 +19,8 @@ import time
 import requests
 import retrying
 
+from oneview_client.ilo_utils import collection
+from oneview_client.ilo_utils import get_type
 from oneview_client import exceptions
 from oneview_client.models import ServerHardware
 from oneview_client.models import ServerProfile
@@ -524,6 +526,33 @@ class Client(object):
                                                   "error state" % uri)
             return task
         return wait(task)
+
+    def get_ilo_sessionkey(self, server_hardware_id):
+        json = self._prepare_and_do_request(
+            uri="/rest/server-hardware/%s/remoteConsoleUrl" % server_hardware_id
+        )
+        url = json.get("remoteConsoleUrl")
+        url_key = "sessionkey="
+        sessionkey = url[url.rfind(url_key) + len(url_key):]
+
+        return sessionkey
+
+    def get_1st_mac_from_ilo(self, server_hardware_id):
+        x_auth_token = self.get_ilo_sessionkey(server_hardware_id)
+        host_info = self.get_server_hardware_by_uuid(server_hardware_id).get("host_info")
+        host_ip = host_info[0].get('mpIpAddresses').get('address')
+
+        # for each system in the systems collection at /rest/v1/Systems
+        for status, headers, system, memberuri in collection(host_ip, '/rest/v1/Systems', None, x_auth_token):
+            # verify expected type
+            # hint:  don't limit to version 0 here as we will rev to 1.0 at some point hopefully with minimal changes
+            assert(get_type(system) == 'ComputerSystem.0' or get_type(system) == 'ComputerSystem.1')
+
+            if 'HostMACAddress' not in system['HostCorrelation']:
+                print('\tNIC resource does not contain "MacAddress" property')
+            else:
+                # Can have more than a link
+                return system['HostCorrelation']['HostMACAddress'][0]
 
 
 def _check_request_status(response):
