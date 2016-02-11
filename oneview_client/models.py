@@ -95,6 +95,25 @@ class ServerProfile(OneViewObject):
         'sanStorage': 'san_storage',
     }
 
+    @classmethod
+    def from_json(cls, json_body):
+        """Returns an instance of ServerProfile with values parsed from json
+
+        This method differs from the one in OneViewObject since it adds keys in
+        the ServerProfile object for values that aren't on attribute_map. This
+        is needed because to send the Server Profile back to OneView, we need
+        to preserve state and required fields that aren't exploited by
+        python-oneviewclient
+        """
+        instance = cls()
+        for attr_key in json_body.keys():
+            attribute_value = json_body.get(attr_key)
+            attribute_map_value = cls.attribute_map.get(attr_key)
+            if attribute_map_value is not None:
+                attr_key = attribute_map_value
+            setattr(instance, attr_key, attribute_value)
+        return instance
+
     def to_oneview_dict(self):
         server_profile_dict = {}
         for attr_key in self.__dict__.keys():
