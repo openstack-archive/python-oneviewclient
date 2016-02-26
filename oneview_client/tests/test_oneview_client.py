@@ -534,7 +534,7 @@ class OneViewClientTestCase(unittest.TestCase):
         self, mock__prepare_do_request, mock__authenticate
     ):
         mock__prepare_do_request.return_value = {
-            "uri": "/rest/server-profile-template/123"
+            "uri": "/rest/server-profile-templates/123"
         }
         uuid = 123
         oneview_client = client.Client(self.manager_url,
@@ -542,7 +542,7 @@ class OneViewClientTestCase(unittest.TestCase):
                                        self.password)
         oneview_client.get_server_profile_template_by_uuid(uuid)
         mock__prepare_do_request.assert_called_once_with(
-            oneview_client, uri="/rest/server-profile-template/123"
+            oneview_client, uri="/rest/server-profile-templates/123"
         )
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)

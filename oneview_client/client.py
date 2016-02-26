@@ -40,7 +40,7 @@ MOMENTARY_PRESS = 'MomentaryPress'
 PRESS_AND_HOLD = 'PressAndHold'
 
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
-SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-template/'
+SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
 
 
 class Client(object):
@@ -179,9 +179,7 @@ class Client(object):
 
     # --- ManagementDriver ---
     def get_server_hardware(self, node_info):
-        INDEX_BEGIN_UUID = len(SERVER_HARDWARE_PREFIX_URI) - 1
-        server_hardware_uri = node_info['server_hardware_uri']
-        uuid = server_hardware_uri[INDEX_BEGIN_UUID:]
+        uuid = node_info['server_hardware_uri'].split("/")[-1]
 
         return self.get_server_hardware_by_uuid(uuid)
 
@@ -219,9 +217,7 @@ class Client(object):
         return ServerProfile.from_json(server_profile_json)
 
     def get_server_profile_template(self, node_info):
-        INDEX_BEGIN_UUID = len(SERVER_PROFILE_TEMPLATE_PREFIX_URI) - 1
-        server_hardware_uri = node_info['server_profile_template_uri']
-        uuid = server_hardware_uri[INDEX_BEGIN_UUID:]
+        uuid = node_info['server_profile_template_uri'].split("/")[-1]
 
         return self.get_server_profile_template_by_uuid(uuid)
 
