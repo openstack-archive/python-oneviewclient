@@ -30,17 +30,23 @@ class Test(unittest.TestCase):
     def test_enclosuregroup_from_json(self):
         json = {
             'uri': 'http://something.com/1111-2222-3333-4444',
+            'uuid': '1111-2222-3333-4444',
+            'name': 'my-enclosure-group',
             'enclosureTypeUri': 'something1',
             'status': 'something2',
         }
         eg = EnclosureGroup.from_json(json)
         enclosure_group_attribute_map = {
             'uri': 'uri',
+            'uuid': 'uuid',
+            'name': 'name',
             'enclosureTypeUri': 'enclosure_type_uri',
             'status': 'status',
         }
         self.assertEqual(eg.attribute_map, enclosure_group_attribute_map)
         self.assertEqual(eg.uri, 'http://something.com/1111-2222-3333-4444')
+        self.assertEqual(eg.uuid, '1111-2222-3333-4444')
+        self.assertEqual(eg.name, 'my-enclosure-group')
         self.assertEqual(eg.enclosure_type_uri, 'something1')
 
     def test_enclosure_from_json(self):
@@ -66,18 +72,25 @@ class Test(unittest.TestCase):
     def test_serverhardwaretype_from_json(self):
         json = {
             'uri': 'http://something.com/1111-2222-3333-4444',
+            'uuid': 'aaaa-bbbb-cccc',
+            'name': 'my-server-hardware-type'
         }
         sht = ServerHardwareType.from_json(json)
         sht_attribute_map = {
             'uri': 'uri',
+            'uuid': 'uuid',
+            'name': 'name'
         }
         self.assertEqual(sht.attribute_map, sht_attribute_map)
         self.assertEqual(sht.uri, 'http://something.com/1111-2222-3333-4444')
+        self.assertEqual(sht.uuid, 'aaaa-bbbb-cccc')
+        self.assertEqual(sht.name, 'my-server-hardware-type')
 
     def test_serverhardware_from_json(self):
         json = {
             'uri': 'http://something.com/1111-2222-3333-4444',
             'uuid': '1111-2222-3333-4444',
+            'name': 'my-server-profile',
             'powerState': 'Powered On',
             'serverProfileUri': 'something1',
             'serverHardwareTypeUri': 'something2',
@@ -100,6 +113,7 @@ class Test(unittest.TestCase):
         sh_attribute_map = {
             'uri': 'uri',
             'uuid': 'uuid',
+            'name': 'name',
             'powerState': 'power_state',
             'serverProfileUri': 'server_profile_uri',
             'serverHardwareTypeUri': 'server_hardware_type_uri',
@@ -116,6 +130,7 @@ class Test(unittest.TestCase):
         self.assertEqual(sh.attribute_map, sh_attribute_map)
         self.assertEqual(sh.uri, 'http://something.com/1111-2222-3333-4444')
         self.assertEqual(sh.uuid, '1111-2222-3333-4444')
+        self.assertEqual(sh.name, 'my-server-profile')
         self.assertEqual(sh.power_state, 'Powered On')
         self.assertEqual(sh.state_reason, 'something5')
         self.assertDictContainsSubset(
@@ -130,12 +145,15 @@ class Test(unittest.TestCase):
     def test_serverprofiletemplate_from_json(self):
         json = {
             'uri': 'http://something.com/1111-2222-3333-4444',
+            'name': 'my-server-profile-template',
             'serverHardwareTypeUri': 'something1',
             'enclosureGroupUri': 'something2',
         }
         spt = ServerProfileTemplate.from_json(json)
         spt_attribute_map = {
             'uri': 'uri',
+            'uuid': 'uuid',
+            'name': 'name',
             'serverHardwareTypeUri': 'server_hardware_type_uri',
             'enclosureGroupUri': 'enclosure_group_uri',
             'boot': 'boot',

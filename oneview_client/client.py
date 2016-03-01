@@ -13,7 +13,9 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import abc
 import json
+import six
 import time
 
 import requests
@@ -21,9 +23,7 @@ import retrying
 
 from oneview_client import exceptions
 from oneview_client import ilo_utils
-from oneview_client.models import ServerHardware
-from oneview_client.models import ServerProfile
-from oneview_client.models import ServerProfileTemplate
+from oneview_client import managers
 from oneview_client import states
 
 
@@ -44,7 +44,8 @@ SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
 
 
-class Client(object):
+@six.add_metaclass(abc.ABCMeta)
+class BaseClient(object):
 
     def __init__(
         self, manager_url, username, password,
@@ -131,6 +132,146 @@ class Client(object):
         except requests.RequestException as e:
             raise exceptions.OneViewConnectionError(e.message)
 
+    # --- Requests ---
+    def _prepare_and_do_request(
+        self, uri, body={}, request_type=GET_REQUEST_TYPE
+    ):
+        json_response = {}
+        try:
+            if not self.session_id:
+                self.session_id = self.get_session()
+
+            headers = {
+                'content-type': 'application/json',
+                'X-Api-Version': SUPPORTED_ONEVIEW_VERSION,
+                'Auth': self.session_id
+            }
+            url = '%s%s' % (self.manager_url, uri)
+            body = json.dumps(body)
+            response = self._do_request(url, headers, body, request_type)
+
+            json_response = response.json()
+        except requests.RequestException as e:
+            connection_error = str(e.message).split(':')[-1]
+            log_message = ("Can't connect to OneView: %s" % connection_error)
+            raise exceptions.OneViewConnectionError(log_message)
+
+        return json_response
+
+    def _do_request(self, url, headers, body, request_type):
+        verify_status = self._get_verify_connection_option()
+
+        @retrying.retry(
+            stop_max_attempt_number=self.max_polling_attempts,
+            retry_on_result=lambda response: _check_request_status(response),
+            wait_fixed=WAIT_DO_REQUEST_IN_MILLISECONDS
+        )
+        def request(url, headers, body, request_type):
+
+            if request_type == PUT_REQUEST_TYPE:
+                response = requests.put(
+                    url, data=body, headers=headers, verify=verify_status
+                )
+            elif request_type == POST_REQUEST_TYPE:
+                response = requests.post(
+                    url, data=body, headers=headers, verify=verify_status
+                )
+            elif request_type == DELETE_REQUEST_TYPE:
+                response = requests.delete(
+                    url, headers=headers, verify=verify_status
+                )
+            else:
+                response = requests.get(
+                    url, headers=headers, verify=verify_status
+                )
+            return response
+        return request(url, headers, body, request_type)
+
+    def _wait_for_task_to_complete(self, task):
+        @retrying.retry(
+            retry_on_result=lambda task: task.get('percentComplete') < 100,
+            wait_fixed=WAIT_TASK_IN_MILLISECONDS,
+            retry_on_exception=lambda task: False
+        )
+        def wait(task):
+            uri = task.get('uri')
+            task = self._prepare_and_do_request(uri)
+
+            task_state = task.get("taskState")
+            error_code = task.get("errorCode")
+            if (not task_state) and error_code:
+                details = task.get("details")
+                if error_code == "RESOURCE_NOT_FOUND":
+                    raise exceptions.OneViewResourceNotFoundError(details)
+                else:
+                    raise exceptions.OneViewTaskError("%s - %s"
+                                                      % (error_code, details))
+            elif task_state.lower() == 'error':
+                raise exceptions.OneViewTaskError("The task '%s' returned an "
+                                                  "error state" % uri)
+            return task
+        return wait(task)
+
+    def _get_ilo_access(self, server_hardware_uuid):
+        uri = ("/rest/server-hardware/%s/remoteConsoleUrl"
+               % server_hardware_uuid)
+        json = self._prepare_and_do_request(uri)
+        url = json.get("remoteConsoleUrl")
+        ip_key = "addr="
+        host_ip = url[url.rfind(ip_key) + len(ip_key):]
+        host_ip = host_ip[:host_ip.find("&")]
+        session_key = "sessionkey="
+        token = url[url.rfind(session_key) + len(session_key):]
+
+        return host_ip, token
+
+    def get_sh_mac_from_ilo(self, server_hardware_uuid, nic_index=0):
+        host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
+        try:
+            return ilo_utils.get_mac_from_ilo(host_ip, ilo_token, nic_index)
+        finally:
+            ilo_utils.ilo_logout(host_ip, ilo_token)
+
+
+class ClientV2(BaseClient):
+
+    def __init__(
+        self, manager_url, username, password,
+        allow_insecure_connections=False, tls_cacert_file='',
+        max_polling_attempts=20
+    ):
+        super(ClientV2, self).__init__(manager_url, username, password,
+                                       allow_insecure_connections,
+                                       tls_cacert_file, max_polling_attempts)
+        # Next generation
+        self.enclosure = managers.EnclosureManager(self)
+        self.enclosure_group = managers.EnclosureGroupManager(self)
+        self.server_hardware = managers.ServerHardwareManager(self)
+        self.server_hardware_type = managers.ServerHardwareTypeManager(self)
+        self.server_profile = managers.ServerProfileManager(self)
+        self.server_profile_template = managers.ServerProfileTemplateManager(
+            self
+        )
+
+
+class Client(BaseClient):
+
+    def __init__(
+        self, manager_url, username, password,
+        allow_insecure_connections=False, tls_cacert_file='',
+        max_polling_attempts=20
+    ):
+        super(Client, self).__init__(manager_url, username, password,
+                                     allow_insecure_connections,
+                                     tls_cacert_file, max_polling_attempts)
+        # Next generation
+        self._enclosure_group = managers.EnclosureGroupManager(self)
+        self._server_hardware = managers.ServerHardwareManager(self)
+        self._server_profile_template = managers.ServerProfileTemplateManager(
+            self
+        )
+        self._server_profile = managers.ServerProfileManager(self)
+
     # --- Power Driver ---
     def get_node_power_state(self, node_info):
         return self.get_server_hardware(node_info).power_state
@@ -182,18 +323,10 @@ class Client(object):
     def get_server_hardware(self, node_info):
         uuid = node_info['server_hardware_uri'].split("/")[-1]
 
-        return self.get_server_hardware_by_uuid(uuid)
+        return self._server_hardware.get(uuid)
 
     def get_server_hardware_by_uuid(self, uuid):
-        server_hardware_uri = SERVER_HARDWARE_PREFIX_URI + str(uuid)
-        server_hardware_json = self._prepare_and_do_request(
-            uri=server_hardware_uri
-        )
-        if server_hardware_json.get("uri") is None:
-            message = "OneView Server Hardware resource not found."
-            raise exceptions.OneViewResourceNotFoundError(message)
-
-        return ServerHardware.from_json(server_hardware_json)
+        return self._server_hardware.get(uuid)
 
     def get_server_profile_from_hardware(self, node_info):
         server_hardware = self.get_server_hardware(node_info)
@@ -207,34 +340,17 @@ class Client(object):
             )
             raise exceptions.OneViewServerProfileAssociatedError(message)
 
-        server_profile_json = self._prepare_and_do_request(
-            uri=server_profile_uri
-        )
+        server_profile_uuid = server_profile_uri.split("/")[-1]
 
-        if server_profile_json.get('uri') is None:
-            message = "OneView Server Profile resource not found."
-            raise exceptions.OneViewResourceNotFoundError(message)
-
-        return ServerProfile.from_json(server_profile_json)
+        return self._server_profile.get(server_profile_uuid)
 
     def get_server_profile_template(self, node_info):
         uuid = node_info['server_profile_template_uri'].split("/")[-1]
 
-        return self.get_server_profile_template_by_uuid(uuid)
+        return self._server_profile.get(uuid)
 
     def get_server_profile_template_by_uuid(self, uuid):
-        server_profile_template_uri = SERVER_PROFILE_TEMPLATE_PREFIX_URI \
-            + str(uuid)
-
-        spt_json = self._prepare_and_do_request(
-            uri=server_profile_template_uri
-        )
-
-        if spt_json.get("uri") is None:
-            message = "OneView Server Profile Template resource not found."
-            raise exceptions.OneViewResourceNotFoundError(message)
-
-        return ServerProfileTemplate.from_json(spt_json)
+        return self._server_profile_template.get(uuid)
 
     def get_boot_order(self, node_info):
         server_profile = self.get_server_profile_from_hardware(
@@ -456,106 +572,6 @@ class Client(object):
                     " template %s." % server_profile_template.uri
                 )
                 raise exceptions.OneViewInconsistentResource(message)
-
-    # --- Requests ---
-    def _prepare_and_do_request(
-        self, uri, body={}, request_type=GET_REQUEST_TYPE
-    ):
-        json_response = {}
-        try:
-            if not self.session_id:
-                self.session_id = self.get_session()
-
-            headers = {
-                'content-type': 'application/json',
-                'X-Api-Version': SUPPORTED_ONEVIEW_VERSION,
-                'Auth': self.session_id
-            }
-            url = '%s%s' % (self.manager_url, uri)
-            body = json.dumps(body)
-            response = self._do_request(url, headers, body, request_type)
-
-            json_response = response.json()
-        except requests.RequestException as e:
-            connection_error = str(e.message).split(':')[-1]
-            log_message = ("Can't connect to OneView: %s" % connection_error)
-            raise exceptions.OneViewConnectionError(log_message)
-
-        return json_response
-
-    def _do_request(self, url, headers, body, request_type):
-        verify_status = self._get_verify_connection_option()
-
-        @retrying.retry(
-            stop_max_attempt_number=self.max_polling_attempts,
-            retry_on_result=lambda response: _check_request_status(response),
-            wait_fixed=WAIT_DO_REQUEST_IN_MILLISECONDS
-        )
-        def request(url, headers, body, request_type):
-
-            if request_type == PUT_REQUEST_TYPE:
-                response = requests.put(
-                    url, data=body, headers=headers, verify=verify_status
-                )
-            elif request_type == POST_REQUEST_TYPE:
-                response = requests.post(
-                    url, data=body, headers=headers, verify=verify_status
-                )
-            elif request_type == DELETE_REQUEST_TYPE:
-                response = requests.delete(
-                    url, headers=headers, verify=verify_status
-                )
-            else:
-                response = requests.get(
-                    url, headers=headers, verify=verify_status
-                )
-            return response
-        return request(url, headers, body, request_type)
-
-    def _wait_for_task_to_complete(self, task):
-        @retrying.retry(
-            retry_on_result=lambda task: task.get('percentComplete') < 100,
-            wait_fixed=WAIT_TASK_IN_MILLISECONDS,
-            retry_on_exception=lambda task: False
-        )
-        def wait(task):
-            uri = task.get('uri')
-            task = self._prepare_and_do_request(uri)
-
-            task_state = task.get("taskState")
-            error_code = task.get("errorCode")
-            if (not task_state) and error_code:
-                details = task.get("details")
-                if error_code == "RESOURCE_NOT_FOUND":
-                    raise exceptions.OneViewResourceNotFoundError(details)
-                else:
-                    raise exceptions.OneViewTaskError("%s - %s"
-                                                      % (error_code, details))
-            elif task_state.lower() == 'error':
-                raise exceptions.OneViewTaskError("The task '%s' returned an "
-                                                  "error state" % uri)
-            return task
-        return wait(task)
-
-    def _get_ilo_access(self, server_hardware_uuid):
-        uri = ("/rest/server-hardware/%s/remoteConsoleUrl"
-               % server_hardware_uuid)
-        json = self._prepare_and_do_request(uri)
-        url = json.get("remoteConsoleUrl")
-        ip_key = "addr="
-        host_ip = url[url.rfind(ip_key) + len(ip_key):]
-        host_ip = host_ip[:host_ip.find("&")]
-        session_key = "sessionkey="
-        token = url[url.rfind(session_key) + len(session_key):]
-
-        return host_ip, token
-
-    def get_sh_mac_from_ilo(self, server_hardware_uuid, nic_index=0):
-        host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
-        try:
-            return ilo_utils.get_mac_from_ilo(host_ip, ilo_token, nic_index)
-        finally:
-            ilo_utils.ilo_logout(host_ip, ilo_token)
 
 
 def _check_request_status(response):
