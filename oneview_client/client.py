@@ -20,6 +20,7 @@ import requests
 import retrying
 
 from oneview_client import exceptions
+from oneview_client import ilo_utils
 from oneview_client.models import ServerHardware
 from oneview_client.models import ServerProfile
 from oneview_client.models import ServerProfileTemplate
@@ -325,14 +326,18 @@ class Client(object):
         sh_enclosure_group_uri = server_hardware.enclosure_group_uri
         node_enclosure_group_uri = node_info.get('enclosure_group_uri')
 
-        if node_enclosure_group_uri is not '':
+        if node_enclosure_group_uri not in ('', 'None', None):
             if sh_enclosure_group_uri != node_enclosure_group_uri:
                 message = (
-                    "Node enclosure_group_uri is inconsistent"
-                    " with OneView's server hardware %(server_hardware_uri)s"
-                    " serverGroupUri." %
-                    {'server_hardware_uri': node_info.
-                     get('server_hardware_uri')}
+                    "Node enclosure_group_uri '%(node_enclosure_group_uri)s' "
+                    "is inconsistent with OneView's server hardware "
+                    "serverGroupUri '%(sh_enclosure_group_uri)s' of "
+                    "ServerHardware %(server_hardware)s"
+                    % {
+                        'node_enclosure_group_uri': node_enclosure_group_uri,
+                        'sh_enclosure_group_uri': sh_enclosure_group_uri,
+                        'server_hardware': server_hardware.uuid,
+                    }
                 )
                 raise exceptions.OneViewInconsistentResource(message)
 
@@ -342,28 +347,38 @@ class Client(object):
         server_profile = self.get_server_profile_from_hardware(
             node_info
         )
-        primary_boot_connection = None
-        for connection in server_profile.connections:
-            boot = connection.get('boot')
-            if boot is not None and boot.get('priority').lower() == 'primary':
-                primary_boot_connection = connection
 
-        if primary_boot_connection is None:
-            message = (
-                "No primary boot connection configured for server profile"
-                " %s." % server_profile.uri
-            )
-            raise exceptions.OneViewInconsistentResource(message)
+        if server_profile.connections:
+            primary_boot_connection = None
 
-        server_profile_mac = primary_boot_connection.get('mac')
+            for connection in server_profile.connections:
+                boot = connection.get('boot')
+                if (boot is not None and
+                   boot.get('priority').lower() == 'primary'):
+                    primary_boot_connection = connection
+
+            if primary_boot_connection is None:
+                message = (
+                    "No primary boot connection configured for server profile"
+                    " %s." % server_profile.uri
+                )
+                raise exceptions.OneViewInconsistentResource(message)
+
+            mac = primary_boot_connection.get('mac')
+
+        else:
+            # If no connections on Server Profile, the connections are not
+            # being managed or the server is rack based. In both cases, fall
+            # back to 1st nic from iLO
+            server_hardware = self.get_server_hardware(node_info)
+            mac = self.get_sh_mac_from_ilo(server_hardware.uuid, nic_index=0)
 
         is_mac_address_compatible = True
         for port in ports:
             port_address = port.__dict__.get('_obj_address')
             if port_address is None:
                 port_address = port.__dict__.get('_address')
-            if port_address.lower() != \
-               server_profile_mac.lower():
+            if port_address.lower() != mac.lower():
                 is_mac_address_compatible = False
 
         if (not is_mac_address_compatible) or len(ports) == 0:
@@ -378,9 +393,11 @@ class Client(object):
         self, node_info, ports
     ):
         server_hardware = self.get_server_hardware(node_info)
-
-        device = server_hardware.port_map.get('deviceSlots')[0]
-        first_physical_port = device.get('physicalPorts')[0]
+        try:
+            first_physical_port = server_hardware.get_mac(nic_index=0)
+            mac = first_physical_port.get('mac').lower()
+        except exceptions.OneViewException:
+            mac = self.get_sh_mac_from_ilo(server_hardware.uuid, nic_index=0)
 
         is_mac_address_compatible = True
         for port in ports:
@@ -388,8 +405,7 @@ class Client(object):
             if port_address is None:
                 port_address = port.__dict__.get('_address')
 
-            if port_address.lower() != \
-               first_physical_port.get('mac').lower():
+            if port_address.lower() != mac:
                 is_mac_address_compatible = False
 
         if (not is_mac_address_compatible) or len(ports) == 0:
@@ -520,6 +536,26 @@ class Client(object):
                                                   "error state" % uri)
             return task
         return wait(task)
+
+    def _get_ilo_access(self, server_hardware_uuid):
+        uri = ("/rest/server-hardware/%s/remoteConsoleUrl"
+               % server_hardware_uuid)
+        json = self._prepare_and_do_request(uri)
+        url = json.get("remoteConsoleUrl")
+        ip_key = "addr="
+        host_ip = url[url.rfind(ip_key) + len(ip_key):]
+        host_ip = host_ip[:host_ip.find("&")]
+        session_key = "sessionkey="
+        token = url[url.rfind(session_key) + len(session_key):]
+
+        return host_ip, token
+
+    def get_sh_mac_from_ilo(self, server_hardware_uuid, nic_index=0):
+        host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
+        try:
+            return ilo_utils.get_mac_from_ilo(host_ip, ilo_token, nic_index)
+        finally:
+            ilo_utils.ilo_logout(host_ip, ilo_token)
 
 
 def _check_request_status(response):

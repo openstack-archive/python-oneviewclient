@@ -711,14 +711,19 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_validate_node_enclosure_group_inconsistent(
         self, mock_get_server_hardware, mock__authenticate
     ):
+        server_hardware = ServerHardware()
+        server_hardware.uuid = "aaaa-bbbb-cccc"
+        server_hardware.enclosure_group_uri = "/my-real-enclosure-group"
+        mock_get_server_hardware.return_value = server_hardware
         driver_info = {
             "server_hardware_uri": "/any_uri",
             "enclosure_group_uri": "/inconsistent_uri"
         }
 
         exc_expected_msg = (
-            "Node enclosure_group_uri is inconsistent with"
-            " OneView's server hardware /any_uri serverGroupUri."
+            "Node enclosure_group_uri '/inconsistent_uri' is inconsistent "
+            "with OneView's server hardware serverGroupUri "
+            "'/my-real-enclosure-group' of ServerHardware aaaa-bbbb-cccc"
         )
 
         oneview_client = client.Client(self.manager_url,
@@ -1100,6 +1105,77 @@ class OneViewClientTestCase(unittest.TestCase):
             node_info,
             ports
         )
+
+    @mock.patch.object(client.Client, 'get_sh_mac_from_ilo')
+    @mock.patch.object(client.Client, 'get_server_hardware')
+    @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
+    def test_is_mac_compatible_with_server_profile_without_connections(
+            self, mock_get_server_profile_from_hardware,
+            mock_get_server_hardware, mock_get_sh_mac_from_ilo,
+            mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        server_profile = ServerProfile()
+        server_profile.connections = []  # No connections, SP for DL server
+        server_profile.uri = 'sp_uri'
+        mock_get_server_profile_from_hardware.return_value = server_profile
+
+        server_hardware = ServerHardware()
+        server_hardware_uuid = 'aaaa-bbbb-cccc'
+        server_hardware.uuid = server_hardware_uuid
+        server_hardware.mp_host_info = {
+            'mpIpAddresses': {'address': '192.168.0.1'}
+        }
+        mock_get_server_hardware.return_value = server_hardware
+
+        mock_get_sh_mac_from_ilo.return_value = 'aa:bb:cc:dd:ee'
+
+        node_info = {'server_hardware_uri': '/rest/111-222-333'}
+        ports = [TestablePort('aa:bb:cc:dd:ee')]
+        oneview_client.is_node_port_mac_compatible_with_server_profile(
+            node_info,
+            ports
+        )
+
+        mock_get_server_hardware.assert_called_once_with(node_info)
+        mock_get_sh_mac_from_ilo.assert_called_once_with(server_hardware_uuid,
+                                                         nic_index=0)
+
+    @mock.patch('oneview_client.ilo_utils.collection', autospec=True)
+    @mock.patch('oneview_client.ilo_utils.ilo_logout', autospec=True)
+    @mock.patch.object(client.Client, '_get_ilo_access')
+    @mock.patch.object(requests, 'get')
+    def test_get_sh_mac_from_ilo(
+        self, mock_get, mock_get_ilo_access, mock_ilo_logout, mock_collection,
+        mock__authenticate
+    ):
+        defined_mac = "aa:bb:cc:dd:ee:ff"
+        sh_uuid = 'aaa-bbb-ccc'
+        my_host = 'https://my-host'
+        key = '123'
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+        mock_collection.return_value = \
+            self.create_collection_for_sh_mac_from_ilo_test()
+        mock_get_ilo_access.return_value = (my_host, key)
+        mac = oneview_client.get_sh_mac_from_ilo(sh_uuid)
+        mock_get_ilo_access.assert_called_once_with(sh_uuid)
+        mock_ilo_logout.assert_called_once_with(my_host, key)
+        self.assertEqual(mac, defined_mac)
+
+    def create_collection_for_sh_mac_from_ilo_test(self):
+        status = 200
+        headers = None
+        system = {'Type': 'ComputerSystem.0',
+                  'HostCorrelation': {'HostMACAddress':
+                                      ['aa:bb:cc:dd:ee:ff']}}
+        memberuri = 'xpto'
+
+        yield status, headers, system, memberuri
 
 
 if __name__ == '__main__':
