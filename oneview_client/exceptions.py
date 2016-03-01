@@ -74,6 +74,10 @@ class OneViewInconsistentResource(OneViewException):
     message = ("The resource is inconsistent with its OneView counterpart")
 
 
+class OneViewInternalServerError(OneViewException):
+    message = ("OneView returned HTTP 500")
+
+
 class OneViewHealthStatusError(OneViewException):
     message = ("There is a health status issue with an OneView Server Profile")
 
@@ -84,3 +88,7 @@ class IncompatibleOneViewAPIVersion(OneViewException):
 
 class UnknowOneViewResponseError(OneViewException):
     message = ("OneView appliance returned an unknown response status")
+
+
+class IloException(OneViewException):
+    message = ("Unknown response from iLO")
