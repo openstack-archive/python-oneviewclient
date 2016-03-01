@@ -418,13 +418,16 @@ class OneViewClientTestCase(unittest.TestCase):
         self, mock__prepare_do_request, mock__authenticate
     ):
         mock__prepare_do_request.return_value = {
-            "uri": "/rest/server-hardware/555"
+            "uri": "/rest/server-hardware/555",
+            "processorCoreCount": 5,
+            "processorCount": 2,
         }
         uuid = 555
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
-        oneview_client.get_server_hardware_by_uuid(uuid)
+        sh = oneview_client.get_server_hardware_by_uuid(uuid)
+        self.assertEqual(sh.cpus, 10)
         mock__prepare_do_request.assert_called_once_with(
             oneview_client, uri="/rest/server-hardware/555"
         )
