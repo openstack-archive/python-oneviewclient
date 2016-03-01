@@ -34,6 +34,8 @@ class OneViewObject(object):
 class EnclosureGroup(OneViewObject):
     attribute_map = {
         'uri': 'uri',
+        'uuid': 'uuid',
+        'name': 'name',
         'enclosureTypeUri': 'enclosure_type_uri',
         'status': 'status',
     }
@@ -52,6 +54,8 @@ class Enclosure(OneViewObject):
 class ServerHardwareType(OneViewObject):
     attribute_map = {
         'uri': 'uri',
+        'uuid': 'uuid',
+        'name': 'name',
     }
 
 
@@ -59,6 +63,7 @@ class ServerHardware(OneViewObject):
     attribute_map = {
         'uri': 'uri',
         'uuid': 'uuid',
+        'name': 'name',
         'powerState': 'power_state',
         'serverProfileUri': 'server_profile_uri',
         'serverHardwareTypeUri': 'server_hardware_type_uri',
@@ -87,6 +92,7 @@ class ServerHardware(OneViewObject):
 class ServerProfileTemplate(OneViewObject):
     attribute_map = {
         'uri': 'uri',
+        'name': 'name',
         'serverHardwareTypeUri': 'server_hardware_type_uri',
         'enclosureGroupUri': 'enclosure_group_uri',
         'connections': 'connections',
