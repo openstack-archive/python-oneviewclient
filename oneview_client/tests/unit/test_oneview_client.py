@@ -732,19 +732,24 @@ class OneViewClientTestCase(unittest.TestCase):
             driver_info
         )
 
+    @mock.patch.object(client.Client, 'get_server_hardware_by_uuid',
+                       autospec=True)
     @mock.patch.object(client.Client, 'get_server_hardware',
                        autospec=True)
     def test_is_node_port_mac_compatible_with_server_hardware(
-        self, mock_server_hardware, mock__authenticate
+        self, mock_server_hardware, mock_server_hardware_by_uuid,
+        mock__authenticate
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock, "uri", "/anyuri")
+        setattr(server_hardware_mock, "uuid", "1111-2222-3333")
         server_hardware_mock_port_map = PORT_MAP
         setattr(server_hardware_mock,
                 "port_map",
                 server_hardware_mock_port_map)
 
         mock_server_hardware.return_value = server_hardware_mock
+        mock_server_hardware_by_uuid.return_value = server_hardware_mock
 
         oneview_client = client.Client(self.manager_url,
                                        self.username,
@@ -757,19 +762,24 @@ class OneViewClientTestCase(unittest.TestCase):
 
         mock_server_hardware.assert_called_once_with(oneview_client, {})
 
+    @mock.patch.object(client.Client, 'get_server_hardware_by_uuid',
+                       autospec=True)
     @mock.patch.object(client.Client, 'get_server_hardware',
                        autospec=True)
     def test_is_node_port_mac_incompatible_with_server_hardware(
-        self, mock_server_hardware, mock__authenticate
+        self, mock_server_hardware, mock_server_hardware_by_uuid,
+        mock__authenticate
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock, "uri", "/anyuri")
+        setattr(server_hardware_mock, "uuid", "1111-2222-3333")
         server_hardware_mock_port_map = PORT_MAP
         setattr(server_hardware_mock,
                 "port_map",
                 server_hardware_mock_port_map)
 
         mock_server_hardware.return_value = server_hardware_mock
+        mock_server_hardware_by_uuid.return_value = server_hardware_mock
 
         exc_expected_msg = (
             "The ports of the node are not compatible with its server hardware"
@@ -1090,6 +1100,7 @@ class OneViewClientTestCase(unittest.TestCase):
             node_info,
             ports
         )
+
 
 if __name__ == '__main__':
     unittest.main()
