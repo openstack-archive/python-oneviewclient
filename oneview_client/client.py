@@ -20,9 +20,7 @@ import requests
 import retrying
 
 from oneview_client import exceptions
-from oneview_client.models import ServerHardware
-from oneview_client.models import ServerProfile
-from oneview_client.models import ServerProfileTemplate
+from oneview_client import ilo_utils
 from oneview_client import states
 
 
@@ -383,8 +381,7 @@ class Client(object):
     ):
         server_hardware = self.get_server_hardware(node_info)
 
-        device = server_hardware.port_map.get('deviceSlots')[0]
-        first_physical_port = device.get('physicalPorts')[0]
+        first_physical_port = server_hardware.get_mac(index=0)
 
         is_mac_address_compatible = True
         for port in ports:
@@ -524,6 +521,26 @@ class Client(object):
                                                   "error state" % uri)
             return task
         return wait(task)
+
+    def _get_ilo_access(self, server_hardware_uuid):
+        uri = ("/rest/server-hardware/%s/remoteConsoleUrl"
+               % server_hardware_uuid)
+        json = self._prepare_and_do_request(uri)
+        url = json.get("remoteConsoleUrl")
+        ip_key = "addr="
+        host_ip = url[url.rfind(ip_key) + len(ip_key):]
+        host_ip = host_ip[:host_ip.find("&")]
+        session_key = "sessionkey="
+        token = url[url.rfind(session_key) + len(session_key):]
+
+        return host_ip, token
+
+    def get_sh_mac_from_ilo(self, server_hardware_uuid, index=0):
+        host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
+        try:
+            return ilo_utils.get_mac_for_ilo(host_ip, ilo_token, index)
+        finally:
+            ilo_utils.ilo_logout(host_ip, ilo_token)
 
 
 def _check_request_status(response):
