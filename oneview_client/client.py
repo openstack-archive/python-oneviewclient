@@ -320,6 +320,12 @@ class Client(object):
     def check_server_profile_is_applied(self, node_info):
         self.get_server_profile_from_hardware(node_info)
 
+    def check_server_profile_is_fully_applied(self, server_hardware_uri):
+        server_hardware_json = self._prepare_and_do_request(
+            uri=server_hardware_uri
+        )
+        return server_hardware_json.get('state') == 'ProfileApplied'
+
     def validate_node_enclosure_group(self, node_info):
         server_hardware = self.get_server_hardware(node_info)
         sh_enclosure_group_uri = server_hardware.enclosure_group_uri

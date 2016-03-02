@@ -1091,5 +1091,27 @@ class OneViewClientTestCase(unittest.TestCase):
             ports
         )
 
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_check_server_profile_is_fully_applied_for_profile_applied(
+            self, mock_prepare_and_do_request, mock__authenticate):
+        mock_prepare_and_do_request.return_value = {'state': "ProfileApplied"}
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        self.assertTrue(oneview_client.check_server_profile_is_fully_applied(
+            '/rest/server-hardware/123'
+        ))
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_check_server_profile_is_fully_applied_for_applying_profile(
+            self, mock_prepare_and_do_request, mock__authenticate):
+        mock_prepare_and_do_request.return_value = {'state': "ApplyingProfile"}
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        self.assertFalse(oneview_client.check_server_profile_is_fully_applied(
+            '/rest/server-hardware/123'
+        ))
+
 if __name__ == '__main__':
     unittest.main()
