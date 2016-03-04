@@ -137,21 +137,21 @@ class Client(object):
 
     def power_on(self, node_info):
         if self.get_node_power_state(node_info) == \
-           states.SERVER_HARDWARE_POWER_ON:
-            ret = states.SERVER_HARDWARE_POWER_ON
+           states.ONEVIEW_POWER_ON:
+            ret = states.ONEVIEW_POWER_ON
         else:
             ret = self.set_node_power_state(
-                node_info, states.SERVER_HARDWARE_POWER_ON
+                node_info, states.ONEVIEW_POWER_ON
             )
         return ret
 
     def power_off(self, node_info):
         if self.get_node_power_state(node_info) == \
-           states.SERVER_HARDWARE_POWER_OFF:
-            ret = states.SERVER_HARDWARE_POWER_OFF
+           states.ONEVIEW_POWERING_OFF:
+            ret = states.ONEVIEW_POWERING_OFF
         else:
             ret = self.set_node_power_state(
-                node_info, states.SERVER_HARDWARE_POWER_OFF, PRESS_AND_HOLD
+                node_info, states.ONEVIEW_POWERING_OFF, PRESS_AND_HOLD
             )
         return ret
 
@@ -171,7 +171,7 @@ class Client(object):
 
         current_state = self.get_node_power_state(node_info)
 
-        if current_state is states.SERVER_HARDWARE_UNKNOWN:
+        if current_state is states.ONEVIEW_ERROR:
             message = (
                 "Error setting node power state to %(state)s" %
                 {"state": state}

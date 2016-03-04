@@ -251,7 +251,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_power_on_server_on(self, mock_get_pstate, mock_set_pstate,
                                 mock__authenticate):
         driver_info = {"server_hardware_uri": "/any"}
-        mock_get_pstate.return_value = states.SERVER_HARDWARE_POWER_ON
+        mock_get_pstate.return_value = states.ONEVIEW_POWER_ON
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
@@ -264,7 +264,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_power_on_server_off(self, mock_get_pstate, mock_set_pstate,
                                  mock__authenticate):
         driver_info = {"server_hardware_uri": "/any"}
-        mock_get_pstate.return_value = states.SERVER_HARDWARE_POWER_OFF
+        mock_get_pstate.return_value = states.ONEVIEW_POWERING_OFF
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
@@ -273,7 +273,7 @@ class OneViewClientTestCase(unittest.TestCase):
         mock_set_pstate.assert_called_once_with(
             oneview_client,
             driver_info,
-            states.SERVER_HARDWARE_POWER_ON
+            states.ONEVIEW_POWER_ON
         )
 
     @mock.patch.object(client.Client, 'set_node_power_state', autospec=True)
@@ -281,7 +281,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_power_off_server_off(self, mock_get_pstate, mock_set_pstate,
                                   mock__authenticate):
         driver_info = {"server_hardware_uri": "/any"}
-        mock_get_pstate.return_value = states.SERVER_HARDWARE_POWER_OFF
+        mock_get_pstate.return_value = states.ONEVIEW_POWERING_OFF
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
@@ -294,7 +294,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_power_off_server_on(self, mock_get_pstate, mock_set_pstate,
                                  mock__authenticate):
         driver_info = {"server_hardware_uri": "/any"}
-        mock_get_pstate.return_value = states.SERVER_HARDWARE_POWER_ON
+        mock_get_pstate.return_value = states.ONEVIEW_POWER_ON
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
@@ -303,7 +303,7 @@ class OneViewClientTestCase(unittest.TestCase):
         mock_set_pstate.assert_called_once_with(
             oneview_client,
             driver_info,
-            states.SERVER_HARDWARE_POWER_OFF,
+            states.ONEVIEW_POWERING_OFF,
             client.PRESS_AND_HOLD
         )
 
@@ -315,7 +315,7 @@ class OneViewClientTestCase(unittest.TestCase):
                                              mock__prepare_do_request,
                                              mock__wait_for_task,
                                              mock__authenticate):
-        mock_get_node_power.return_value = states.SERVER_HARDWARE_POWER_ON
+        mock_get_node_power.return_value = states.ONEVIEW_POWER_ON
         mock__prepare_do_request.return_value = {}
         driver_info = {"server_hardware_uri": "/any"}
 
@@ -325,13 +325,13 @@ class OneViewClientTestCase(unittest.TestCase):
 
         oneview_client.set_node_power_state(
             driver_info,
-            states.SERVER_HARDWARE_POWER_ON
+            states.ONEVIEW_POWER_ON
         )
         mock__prepare_do_request.assert_called_once_with(
             oneview_client,
             uri='/any/powerState',
             body={'powerControl': client.MOMENTARY_PRESS,
-                  'powerState': states.SERVER_HARDWARE_POWER_ON},
+                  'powerState': states.ONEVIEW_POWER_ON},
             request_type=client.PUT_REQUEST_TYPE,
         )
 
@@ -351,7 +351,7 @@ class OneViewClientTestCase(unittest.TestCase):
         mock_do_request.return_value = Response()
 
         driver_info = {"server_hardware_uri": "/any_invalid"}
-        target_state = states.SERVER_HARDWARE_POWER_ON
+        target_state = states.ONEVIEW_POWER_ON
 
         oneview_client = client.Client(self.manager_url,
                                        self.username,
@@ -367,7 +367,7 @@ class OneViewClientTestCase(unittest.TestCase):
     def test_set_power_state_server_hardware_power_status_unknown(
         self, mock_get_node_power, mock__prepare_do_request, mock__authenticate
     ):
-        power = states.SERVER_HARDWARE_UNKNOWN
+        power = states.ONEVIEW_ERROR
         mock_get_node_power.return_value = power
         mock__prepare_do_request.return_value = {
             "taskState": "Error",
@@ -1188,7 +1188,7 @@ class OneViewClientTestCase(unittest.TestCase):
             self, mock_get_server_hardware, mock__authenticate):
 
         server_hardware = ServerHardware()
-        server_hardware.state = states.SERVER_HARDWARE_PROFILE_APPLIED
+        server_hardware.state = states.ONEVIEW_PROFILE_APPLIED
         mock_get_server_hardware.return_value = server_hardware
 
         oneview_client = client.Client(self.manager_url,
@@ -1197,7 +1197,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
         oneview_client.get_server_hardware = mock_get_server_hardware
         self.assertEqual(
-            states.SERVER_HARDWARE_PROFILE_APPLIED,
+            states.ONEVIEW_PROFILE_APPLIED,
             oneview_client.get_server_hardware_state(None)
         )
 
@@ -1206,7 +1206,7 @@ class OneViewClientTestCase(unittest.TestCase):
             self, mock_get_server_hardware, mock__authenticate):
 
         server_hardware = ServerHardware()
-        server_hardware.state = states.SERVER_HARDWARE_APPLYING_PROFILE
+        server_hardware.state = states.ONEVIEW_APPLYING_PROFILE
         mock_get_server_hardware.return_value = server_hardware
 
         oneview_client = client.Client(self.manager_url,
@@ -1215,7 +1215,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
         oneview_client.get_server_hardware = mock_get_server_hardware
         self.assertEqual(
-            states.SERVER_HARDWARE_APPLYING_PROFILE,
+            states.ONEVIEW_APPLYING_PROFILE,
             oneview_client.get_server_hardware_state(None)
         )
 
