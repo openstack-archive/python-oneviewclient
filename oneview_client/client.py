@@ -42,6 +42,18 @@ PRESS_AND_HOLD = 'PressAndHold'
 
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
+NETWORK_PREFIX_URI = '/rest/ethernet-networks/'
+
+ETHERNET_NETWORK_TYPE_TAGGED = 'Tagged'
+ETHERNET_NETWORK_TYPE_UNTAGGED = 'Untagged'
+
+
+def _get_oneview_resource_uuid_from_resource_uri(uri):
+    return uri.split("/")[-1]
+
+
+def _get_oneview_resource_uri_from_resource_uuid(resource_prefix, uuid):
+    return resource_prefix + uuid
 
 
 class Client(object):
@@ -177,6 +189,49 @@ class Client(object):
             raise exceptions.OneViewErrorStateSettingPowerState(message)
 
         return current_state
+
+    # --- Network ---
+    def create_network(self, name, ethernet_network_type, vlan=''):
+        if ethernet_network_type.lower() ==\
+           ETHERNET_NETWORK_TYPE_UNTAGGED.lower():
+            vlan = ''
+        network_json = {
+            "vlanId": vlan,
+            "purpose": "General",
+            "name": name,
+            "smartLink": "false",
+            "privateNetwork": "false",
+            "connectionTemplateUri": "null",
+            "ethernetNetworkType": ethernet_network_type,
+            "type": "ethernet-networkV3"
+        }
+        task = self._prepare_and_do_request(
+            uri=NETWORK_PREFIX_URI, body=network_json,
+            request_type=POST_REQUEST_TYPE
+        )
+        try:
+            return self._wait_for_task_to_complete(task)
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorCreatingNetwork(e.message)
+
+    def list_network(self):
+        return self._prepare_and_do_request(
+            uri=NETWORK_PREFIX_URI
+        ).get('members')
+
+    def get_network(self, uuid):
+        network_uri = _get_oneview_resource_uri_from_resource_uuid(
+            NETWORK_PREFIX_URI, uuid)
+        return self._prepare_and_do_request(
+            uri=network_uri
+        )
+
+    def delete_network(self, uuid):
+        network_uri = _get_oneview_resource_uri_from_resource_uuid(
+            NETWORK_PREFIX_URI, uuid)
+        return self._prepare_and_do_request(
+            uri=network_uri, request_type=DELETE_REQUEST_TYPE
+        )
 
     # --- ManagementDriver ---
     def get_server_hardware(self, node_info):
