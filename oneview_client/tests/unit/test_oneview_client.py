@@ -1177,6 +1177,64 @@ class OneViewClientTestCase(unittest.TestCase):
 
         yield status, headers, system, memberuri
 
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_create_valid_untagged_network(
+        self, mock__prepare_do_request, mock__authenticate
+    ):
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+        fake_network_name = 'fake'
+        ethernet_network_type = client.ETHERNET_NETWORK_TYPE_UNTAGGED
+        oneview_client.create_network(fake_network_name, ethernet_network_type)
+
+        network_body = {
+            "vlanId": '',
+            "purpose": "General",
+            "name": fake_network_name,
+            "smartLink": "false",
+            "privateNetwork": "false",
+            "connectionTemplateUri": "null",
+            "ethernetNetworkType": ethernet_network_type,
+            "type": "ethernet-networkV3"
+        }
+        mock__prepare_do_request.assert_called_once_with(
+            oneview_client, uri='/rest/ethernet-networks/', body=network_body,
+            request_type=client.POST_REQUEST_TYPE
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_list_networks(
+        self, mock__prepare_do_request, mock__authenticate
+    ):
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+        oneview_client.list_network()
+        mock__prepare_do_request.assert_called_once_with(
+            oneview_client, uri='/rest/ethernet-networks/'
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_delete_network(
+        self, mock__prepare_do_request, mock__authenticate
+    ):
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+        fake_uri = "/rest/ethernet-networks/NETWORK-UUID"
+        oneview_client.delete_network(fake_uri)
+        mock__prepare_do_request.assert_called_once_with(
+            oneview_client, uri=fake_uri,
+            request_type=client.DELETE_REQUEST_TYPE
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

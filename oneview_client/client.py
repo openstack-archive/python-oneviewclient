@@ -42,6 +42,10 @@ PRESS_AND_HOLD = 'PressAndHold'
 
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
+NETWORK_PREFIX_URI = '/rest/ethernet-networks/'
+
+ETHERNET_NETWORK_TYPE_TAGGED = 'Tagged'
+ETHERNET_NETWORK_TYPE_UNTAGGED = 'Untagged'
 
 
 class Client(object):
@@ -177,6 +181,40 @@ class Client(object):
             raise exceptions.OneViewErrorStateSettingPowerState(message)
 
         return current_state
+
+    # --- Network ---
+    def create_network(self, name, ethernet_network_type, vlan=''):
+        if ethernet_network_type == ETHERNET_NETWORK_TYPE_UNTAGGED:
+            vlan = ''
+        network_body = {
+            "vlanId": vlan,
+            "purpose": "General",
+            "name": name,
+            "smartLink": "false",
+            "privateNetwork": "false",
+            "connectionTemplateUri": "null",
+            "ethernetNetworkType": ethernet_network_type,
+            "type": "ethernet-networkV3"
+        }
+        return self._prepare_and_do_request(
+            uri=NETWORK_PREFIX_URI, body=network_body,
+            request_type=POST_REQUEST_TYPE
+        )
+
+    def list_network(self):
+        return self._prepare_and_do_request(
+            uri=NETWORK_PREFIX_URI
+        )
+
+    def get_network(self, uri):
+        for net in self.list_network():
+            if net['uri'] == uri:
+                return net
+
+    def delete_network(self, uri):
+        return self._prepare_and_do_request(
+            uri=uri, request_type=DELETE_REQUEST_TYPE
+        )
 
     # --- ManagementDriver ---
     def get_server_hardware(self, node_info):
