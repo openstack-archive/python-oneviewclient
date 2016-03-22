@@ -190,6 +190,8 @@ class Client(object):
 
         return current_state
 
+    # -- Uplink Set ---
+
     # --- Network ---
     def create_network(self, name, ethernet_network_type, vlan=''):
         if ethernet_network_type.lower() ==\
