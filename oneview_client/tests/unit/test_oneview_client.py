@@ -1350,6 +1350,37 @@ class OneViewClientTestCase(unittest.TestCase):
             request_type=client.DELETE_REQUEST_TYPE
         )
 
+    @mock.patch.object(requests, 'get')
+    def test_get_logical_interconnect_nonexistent_by_uuid(self, mock_get, mock__authenticate):
+        response = mock_get.return_value
+        response.status_code = http_client.NOT_FOUND
+        mock_get.return_value = response
+        uuid = '0'
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            oneview_client.get_logical_interconnect,
+            uuid
+        )
+
+    @mock.patch.object(client, 'get_logical_interconnect')
+    def test_get_internal_networks_uri_from_logical_interconnect(
+        self, mock_get_logical_interconnect, mock__authenticate
+    ):
+        networks_uri = [uri]
+        mock_get_logical_interconnect.return_value =\
+            {"internalNetworkUris": networks_uri}
+
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        internal_networks_uri =\
+            oneview_client.\
+                get_internal_networks_uri_from_logical_interconnect()
+        self.assertEqual(networks_uri, internal_networks_uri)
 
 if __name__ == '__main__':
     unittest.main()

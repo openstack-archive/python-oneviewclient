@@ -43,6 +43,8 @@ PRESS_AND_HOLD = 'PressAndHold'
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
 NETWORK_PREFIX_URI = '/rest/ethernet-networks/'
+LOGICAL_INTERCONNECT_PREFIX_URI = '/rest/logical-interconnects/'
+LOGICAL_INTERCONNECT_INTERNAL_NETWORKS_SUFIX_URI = '/internalNetworks'
 
 ETHERNET_NETWORK_TYPE_TAGGED = 'Tagged'
 ETHERNET_NETWORK_TYPE_UNTAGGED = 'Untagged'
@@ -189,6 +191,49 @@ class Client(object):
             raise exceptions.OneViewErrorStateSettingPowerState(message)
 
         return current_state
+
+    # --- Logical Interconnect ---
+    def get_logical_interconnect(self, uuid):
+        logical_interconnect_uri =\
+            _get_oneview_resource_uri_from_resource_uuid(
+                LOGICAL_INTERCONNECT_PREFIX_URI, uuid
+            )
+        return self._prepare_and_do_request(
+            uri=logical_interconnect_uri
+        )
+
+    def get_internal_networks_uri_from_logical_interconnect(
+        self, logical_interconnect_uuid
+    ):
+        logical_interconnect_dict =\
+            self.get_logical_interconnect(logical_interconnect_uuid)
+        return logical_interconnect_dict.get('internalNetworkUris')
+
+    def add_internal_network_to_logical_interconnect(
+        self, logical_interconnect_uuid, network_uuid
+    ):
+        internal_networks_uri =\
+            self.get_internal_networks_uri_from_logical_interconnect(
+                logical_interconnect_uuid
+            )
+        network_uri = _get_oneview_resource_uri_from_resource_uuid(
+            NETWORK_PREFIX_URI, network_uuid)
+        #TODO: Check for add the same network multiple times
+        internal_networks_uri.append(network_uri)
+        logical_interconnect_uri =\
+            _get_oneview_resource_uri_from_resource_uuid(
+                LOGICAL_INTERCONNECT_PREFIX_URI, logical_interconnect_uuid
+            )
+        task = self._prepare_and_do_request(
+            uri=logical_interconnect_uri +\
+                LOGICAL_INTERCONNECT_INTERNAL_NETWORKS_SUFIX_URI,
+            body=internal_networks_uri,
+            request_type=PUT_REQUEST_TYPE
+        )
+        try:
+            return self._wait_for_task_to_complete(task)
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorUpdatingLogicalInterconnect(e.message)
 
     # --- Network ---
     def create_network(self, name, ethernet_network_type, vlan=''):
