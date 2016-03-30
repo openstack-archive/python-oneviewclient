@@ -43,6 +43,8 @@ PRESS_AND_HOLD = 'PressAndHold'
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
 NETWORK_PREFIX_URI = '/rest/ethernet-networks/'
+SERVER_PROFILE_PREFIX_URI = '/rest/server-profiles/'
+
 
 ETHERNET_NETWORK_TYPE_TAGGED = 'Tagged'
 ETHERNET_NETWORK_TYPE_UNTAGGED = 'Untagged'
@@ -189,6 +191,73 @@ class Client(object):
             raise exceptions.OneViewErrorStateSettingPowerState(message)
 
         return current_state
+
+    # --- Connection ---
+    def add_connection_to_server_profile(
+        self, server_profile_uuid, network_uuid, priority, portId,
+        functionType
+    ):
+        server_profile_uri = _get_oneview_resource_uri_from_resource_uuid(
+            SERVER_PROFILE_PREFIX_URI, server_profile_uuid)
+        network_uri = _get_oneview_resource_uri_from_resource_uuid(
+            NETWORK_PREFIX_URI, network_uuid)
+        server_profile_obj = self.get_server_profile_by_uuid(
+            server_profile_uuid)
+
+        connections = [
+            {
+            "functionType": functionType,
+            "portId": portId,
+            "networkUri": network_uri,
+            "boot": {
+                "priority": priority
+                }
+            }
+        ]
+
+        server_profile_update_json = {
+            "type": server_profile_obj.type,
+            "uri": server_profile_uri,
+            "name": server_profile_obj.name,
+            "uuid": server_profile_obj.uuid,
+            "serverHardwareUri": server_profile_obj.server_hardware_uri,
+            "serverHardwareTypeUri": server_profile_obj.server_hardware_type_uri,
+            "enclosureGroupUri": server_profile_obj.enclosure_group_uri,
+            "eTag": server_profile_obj.e_tag,
+            "connections": connections
+        }
+
+        task = self._prepare_and_do_request(
+            uri=server_profile_uri, body=server_profile_update_json,
+            request_type=PUT_REQUEST_TYPE
+        )
+        task_completed = self._wait_for_task_to_complete(task)
+        return task_completed.get('associatedResource').get('resourceUri')
+
+    def add_primary_connection_to_server_profile(
+        self, server_profile_uuid, network_uuid
+    ):
+        portId = self.get_next_available_port_id(server_profile_uuid)
+        self.add_connection_to_server_profile(
+            server_profile_uuid, network_uuid, priority='Primary',
+            portId=portId, functionType='Ethernet')
+
+    def get_next_available_port_id(self, server_profile_uuid):
+        return "Flb 1:1-a"
+
+    def get_server_profile_by_uuid(self, server_profile_uuid):
+        server_profile_uri = _get_oneview_resource_uri_from_resource_uuid(
+            SERVER_PROFILE_PREFIX_URI, server_profile_uuid)
+
+        server_profile_json = self._prepare_and_do_request(
+            uri=server_profile_uri
+        )
+
+        if server_profile_json.get("uri") is None:
+            message = "OneView Server Profile resource not found."
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        return ServerProfile.from_json(server_profile_json)
 
     # --- Network ---
     def create_network(self, name, ethernet_network_type, vlan=''):
