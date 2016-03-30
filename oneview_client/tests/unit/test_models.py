@@ -158,6 +158,7 @@ class Test(unittest.TestCase):
             'connections': 'something',
             'boot': 'something',
             'sanStorage': 'something',
+            'eTag': 'something',
         }
         sp = ServerProfile.from_json(json)
         server_profile_attribute_map = {
@@ -172,6 +173,7 @@ class Test(unittest.TestCase):
             'connections': 'connections',
             'boot': 'boot',
             'sanStorage': 'san_storage',
+            'eTag': 'e_tag',
         }
         self.assertEqual(sp.attribute_map, server_profile_attribute_map)
         self.assertEqual(sp.uri, 'http://something.com')

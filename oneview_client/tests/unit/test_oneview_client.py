@@ -1350,6 +1350,61 @@ class OneViewClientTestCase(unittest.TestCase):
             request_type=client.DELETE_REQUEST_TYPE
         )
 
+    @mock.patch.object(client.Client, 'list_network', autospec=True)
+    def test_get_network_by_name(
+        self, mock_list_network, mock__authenticate
+    ):
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+
+        network_name = 'name1'
+        networks = [{"name": network_name},{"name": "name2"}]
+        mock_list_network.return_value = networks
+        network = oneview_client.get_network_by_name(network_name)
+        self.assertEqual(networks[0].get('name'), network_name)
+
+    """
+    @mock.patch.object(client.Client, '', autospec=True)
+    def test_add_connection_to_server_profile(
+       self, , mock__authenticate
+    ):
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )"""
+
+    """ @mock.patch.object(client.Client, '', autospec=True)
+     def test_add_primary_connection_to_server_profile(
+        self, , mock__authenticate
+    ):
+
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )"""
+
+    @mock.patch.object(requests, 'get')
+    def test_get_server_profile_nonexistent_by_uuid(
+         self, mock_get, mock__authenticate
+     ):
+        response = mock_get.return_value
+        response.status_code = http_client.NOT_FOUND
+        mock_get.return_value = response
+        uuid = '0'
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            oneview_client.get_server_profile_by_uuid,
+            uuid
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

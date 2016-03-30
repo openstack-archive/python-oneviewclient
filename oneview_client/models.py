@@ -107,6 +107,7 @@ class ServerProfile(OneViewObject):
         'connections': 'connections',
         'boot': 'boot',
         'sanStorage': 'san_storage',
+        'eTag': 'e_tag'
     }
 
     @classmethod
