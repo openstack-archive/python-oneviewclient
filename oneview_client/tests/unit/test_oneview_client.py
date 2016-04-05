@@ -237,92 +237,85 @@ class OneViewClientAuthTestCase(unittest.TestCase):
         self.assertEqual(reference, session_id)
 
 
-@mock.patch.object(client.Client, '_authenticate', autospec=True)
 class OneViewClientTestCase(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch.object(client.Client, '_authenticate', autospec=True)
+    def setUp(self, mock__authenticate):
         super(OneViewClientTestCase, self).setUp()
         self.manager_url = 'https://1.2.3.4'
         self.username = 'user'
         self.password = 'password'
+        self.oneview_client = client.Client(
+            self.manager_url, self.username, self.password
+        )
 
     @mock.patch.object(client.Client, 'set_node_power_state', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
-    def test_power_on_server_on(self, mock_get_pstate, mock_set_pstate,
-                                mock__authenticate):
+    def test_power_on_server_on(self, mock_get_pstate, mock_set_pstate):
         driver_info = {"server_hardware_uri": "/any"}
         mock_get_pstate.return_value = states.ONEVIEW_POWER_ON
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        oneview_client.power_on(driver_info)
-        mock_get_pstate.assert_called_once_with(oneview_client, driver_info)
+        self.oneview_client.power_on(driver_info)
+        mock_get_pstate.assert_called_once_with(
+            self.oneview_client, driver_info
+        )
         self.assertFalse(mock_set_pstate.called)
 
     @mock.patch.object(client.Client, 'set_node_power_state', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
-    def test_power_on_server_off(self, mock_get_pstate, mock_set_pstate,
-                                 mock__authenticate):
+    def test_power_on_server_off(self, mock_get_pstate, mock_set_pstate):
         driver_info = {"server_hardware_uri": "/any"}
         mock_get_pstate.return_value = states.ONEVIEW_POWER_OFF
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        oneview_client.power_on(driver_info)
-        mock_get_pstate.assert_called_once_with(oneview_client, driver_info)
-        mock_set_pstate.assert_called_once_with(oneview_client, driver_info,
-                                                states.ONEVIEW_POWER_ON)
+        self.oneview_client.power_on(driver_info)
+        mock_get_pstate.assert_called_once_with(
+            self.oneview_client, driver_info
+        )
+        mock_set_pstate.assert_called_once_with(
+            self.oneview_client, driver_info, states.ONEVIEW_POWER_ON
+        )
 
     @mock.patch.object(client.Client, 'set_node_power_state', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
-    def test_power_off_server_off(self, mock_get_pstate, mock_set_pstate,
-                                  mock__authenticate):
+    def test_power_off_server_off(self, mock_get_pstate, mock_set_pstate):
         driver_info = {"server_hardware_uri": "/any"}
         mock_get_pstate.return_value = states.ONEVIEW_POWER_OFF
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        oneview_client.power_off(driver_info)
-        mock_get_pstate.assert_called_once_with(oneview_client, driver_info)
+        self.oneview_client.power_off(driver_info)
+        mock_get_pstate.assert_called_once_with(
+            self.oneview_client, driver_info
+        )
         self.assertFalse(mock_set_pstate.called)
 
     @mock.patch.object(client.Client, 'set_node_power_state', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
-    def test_power_off_server_on(self, mock_get_pstate, mock_set_pstate,
-                                 mock__authenticate):
+    def test_power_off_server_on(self, mock_get_pstate, mock_set_pstate):
         driver_info = {"server_hardware_uri": "/any"}
         mock_get_pstate.return_value = states.ONEVIEW_POWER_ON
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        oneview_client.power_off(driver_info)
-        mock_get_pstate.assert_called_once_with(oneview_client, driver_info)
-        mock_set_pstate.assert_called_once_with(oneview_client, driver_info,
-                                                states.ONEVIEW_POWER_OFF,
-                                                client.PRESS_AND_HOLD)
+        self.oneview_client.power_off(driver_info)
+        mock_get_pstate.assert_called_once_with(
+            self.oneview_client, driver_info
+        )
+        mock_set_pstate.assert_called_once_with(
+            self.oneview_client, driver_info, states.ONEVIEW_POWER_OFF,
+            client.PRESS_AND_HOLD
+        )
 
     @mock.patch.object(client.Client, '_wait_for_task_to_complete',
                        autospec=True)
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
-    def test_set_power_state_server_hardware(self, mock_get_node_power,
-                                             mock__prepare_do_request,
-                                             mock__wait_for_task,
-                                             mock__authenticate):
+    def test_set_power_state_server_hardware(
+        self, mock_get_node_power, mock__prepare_do_request,
+        mock__wait_for_task
+    ):
         mock_get_node_power.return_value = states.ONEVIEW_POWER_ON
         mock__prepare_do_request.return_value = {}
         driver_info = {"server_hardware_uri": "/any"}
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
-        oneview_client.set_node_power_state(
+        self.oneview_client.set_node_power_state(
             driver_info,
             states.ONEVIEW_POWER_ON
         )
         mock__prepare_do_request.assert_called_once_with(
-            oneview_client,
+            self.oneview_client,
             uri='/any/powerState',
             body={'powerControl': client.MOMENTARY_PRESS,
                   'powerState': states.ONEVIEW_POWER_ON},
@@ -331,8 +324,8 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(requests, 'put', autospec=True)
     def test_set_power_state_nonexistent_server_hardware(
-            self, mock_do_request, mock__authenticate):
-
+        self, mock_do_request
+    ):
         class Response(object):
             status_code = 404
 
@@ -347,19 +340,15 @@ class OneViewClientTestCase(unittest.TestCase):
         driver_info = {"server_hardware_uri": "/any_invalid"}
         target_state = states.ONEVIEW_POWER_ON
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
-            oneview_client.set_node_power_state, driver_info, target_state
+            self.oneview_client.set_node_power_state, driver_info, target_state
         )
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     @mock.patch.object(client.Client, 'get_node_power_state', autospec=True)
     def test_set_power_state_server_hardware_power_status_error(
-        self, mock_get_node_power, mock__prepare_do_request, mock__authenticate
+        self, mock_get_node_power, mock__prepare_do_request
     ):
         power = states.ONEVIEW_ERROR
         mock_get_node_power.return_value = power
@@ -370,72 +359,53 @@ class OneViewClientTestCase(unittest.TestCase):
         driver_info = {"server_hardware_uri": "/any"}
         target_state = "On"
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
         self.assertRaises(
             exceptions.OneViewErrorStateSettingPowerState,
-            oneview_client.set_node_power_state, driver_info, target_state
+            self.oneview_client.set_node_power_state, driver_info, target_state
         )
 
     @mock.patch.object(requests, 'get')
-    def test_get_server_hardware_nonexistent(self, mock_get,
-                                             mock__authenticate):
+    def test_get_server_hardware_nonexistent(self, mock_get):
         response = mock_get.return_value
         response.status_code = http_client.NOT_FOUND
         mock_get.return_value = response
         driver_info = {"server_hardware_uri": ""}
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
-            oneview_client.get_server_hardware,
+            self.oneview_client.get_server_hardware,
             driver_info
         )
 
     @mock.patch.object(requests, 'get')
-    def test_get_server_hardware_nonexistent_by_uuid(
-        self, mock_get, mock__authenticate
-    ):
+    def test_get_server_hardware_nonexistent_by_uuid(self, mock_get):
         response = mock_get.return_value
         response.status_code = http_client.NOT_FOUND
         mock_get.return_value = response
         uuid = 0
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
-            oneview_client.get_server_hardware_by_uuid,
+            self.oneview_client.get_server_hardware_by_uuid,
             uuid
         )
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
-    def test_get_server_hardware_by_uuid(
-        self, mock__prepare_do_request, mock__authenticate
-    ):
+    def test_get_server_hardware_by_uuid(self, mock__prepare_do_request):
         mock__prepare_do_request.return_value = {
             "uri": "/rest/server-hardware/555"
         }
         uuid = 555
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        oneview_client.get_server_hardware_by_uuid(uuid)
+        self.oneview_client.get_server_hardware_by_uuid(uuid)
         mock__prepare_do_request.assert_called_once_with(
-            oneview_client, uri="/rest/server-hardware/555"
+            self.oneview_client, uri="/rest/server-hardware/555"
         )
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware',
                        autospec=True)
-    def test_set_boot_device_nonexistent_resource_uri(self,
-                                                      mock_get_server_profile,
-                                                      mock__prepare_do_request,
-                                                      mock__authenticate):
+    def test_set_boot_device_nonexistent_resource_uri(
+        self, mock_get_server_profile, mock__prepare_do_request
+    ):
         driver_info = {}
         new_first_boot_device = "None"
         mock__prepare_do_request.return_value = {
@@ -443,32 +413,24 @@ class OneViewClientTestCase(unittest.TestCase):
             "data": None
         }
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
-            oneview_client.set_boot_device,
+            self.oneview_client.set_boot_device,
             driver_info,
             new_first_boot_device
         )
 
     @mock.patch.object(client.Client, 'get_boot_order', autospec=True)
     def test_set_boot_device_nonexistent_resource_first_boot_device(
-        self, mock_get_boot_order, mock__authenticate
+        self, mock_get_boot_order
     ):
         driver_info = {}
         new_first_boot_device = None
         mock_get_boot_order.return_value = []
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaises(
             exceptions.OneViewBootDeviceInvalidError,
-            oneview_client.set_boot_device,
+            self.oneview_client.set_boot_device,
             driver_info,
             new_first_boot_device
         )
@@ -476,10 +438,10 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     @mock.patch.object(client.Client, 'get_boot_order', autospec=True)
-    def test_get_server_profile_from_hardware(self, mock_get_boot_order,
-                                              mock_get_server_hardware,
-                                              mock__prepare_do_request,
-                                              mock__authenticate):
+    def test_get_server_profile_from_hardware(
+        self, mock_get_boot_order, mock_get_server_hardware,
+        mock__prepare_do_request
+    ):
         driver_info = {}
         new_first_boot_device = "any_boot_device"
         mock_get_boot_order.return_value = []
@@ -487,13 +449,9 @@ class OneViewClientTestCase(unittest.TestCase):
         setattr(server_hardware, 'server_profile_uri', None)
         mock_get_server_hardware.return_value = server_hardware
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaises(
             exceptions.OneViewServerProfileAssociatedError,
-            oneview_client.set_boot_device,
+            self.oneview_client.set_boot_device,
             driver_info,
             new_first_boot_device
         )
@@ -507,44 +465,37 @@ class OneViewClientTestCase(unittest.TestCase):
 
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
-            oneview_client.set_boot_device,
+            self.oneview_client.set_boot_device,
             driver_info,
             new_first_boot_device
         )
 
     @mock.patch.object(requests, 'get')
-    def test_get_server_profile_template_nonexistent_by_uuid(
-        self, mock_get, mock__authenticate
-    ):
+    def test_get_server_profile_template_nonexistent_by_uuid(self, mock_get):
         response = mock_get.return_value
         response.status_code = http_client.NOT_FOUND
         mock_get.return_value = response
         uuid = 0
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
-            oneview_client.get_server_profile_template_by_uuid,
+            self.oneview_client.get_server_profile_template_by_uuid,
             uuid
         )
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     def test_get_server_profile_template_by_uuid(
-        self, mock__prepare_do_request, mock__authenticate
+        self, mock__prepare_do_request
     ):
         mock__prepare_do_request.return_value = {
             "uri": "/rest/server-profile-templates/123"
         }
         uuid = 123
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        oneview_client.get_server_profile_template_by_uuid(uuid)
+        self.oneview_client.get_server_profile_template_by_uuid(uuid)
         mock__prepare_do_request.assert_called_once_with(
-            oneview_client, uri="/rest/server-profile-templates/123"
+            self.oneview_client, uri="/rest/server-profile-templates/123"
         )
 
+    @mock.patch.object(client.Client, '_authenticate', autospec=True)
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     def test__wait_for_task_to_complete(self, mock__prepare_do_request,
                                         mock__authenticate):
@@ -581,9 +532,11 @@ class OneViewClientTestCase(unittest.TestCase):
         mock__prepare_do_request.side_effect = [task1, task2, task3]
         oneview_client._wait_for_task_to_complete(task0)
 
+    @mock.patch.object(client.Client, '_authenticate', autospec=True)
     @mock.patch.object(requests, 'get')
-    def test__wait_for_task_to_complete_timeout(self, mock_get,
-                                                mock__authenticate):
+    def test__wait_for_task_to_complete_timeout(
+        self, mock_get, mock__authenticate
+    ):
         task = {
             "uri": "/any_uri",
             "taskState": "Something",
@@ -607,7 +560,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_hardware_inconsistent_memorymb_value(
-        self, mock_get_server_hardware, mock__authenticate
+        self, mock_get_server_hardware
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock, "processor_core_count", 1)
@@ -627,14 +580,10 @@ class OneViewClientTestCase(unittest.TestCase):
             " hardware /any_uri memoryMb."
         )
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            oneview_client.validate_node_server_hardware,
+            self.oneview_client.validate_node_server_hardware,
             driver_info,
             node_memorymb,
             node_cpus
@@ -642,7 +591,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_hardware_inconsistent_cpus_value(
-        self, mock_get_server_hardware, mock__authenticate
+        self, mock_get_server_hardware
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock, "processor_core_count", 2)
@@ -662,14 +611,10 @@ class OneViewClientTestCase(unittest.TestCase):
             " hardware /any_uri cpus."
         )
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            oneview_client.validate_node_server_hardware,
+            self.oneview_client.validate_node_server_hardware,
             driver_info,
             node_memorymb,
             node_cpus
@@ -677,7 +622,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_hardware_type_inconsistent_sht_uri(
-        self, mock_get_server_hardware, mock__authenticate
+        self, mock_get_server_hardware
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock,
@@ -696,20 +641,16 @@ class OneViewClientTestCase(unittest.TestCase):
             " OneView's server hardware /any_serveruri serverHardwareTypeUri."
         )
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            oneview_client.validate_node_server_hardware_type,
+            self.oneview_client.validate_node_server_hardware_type,
             driver_info
         )
 
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_enclosure_group_inconsistent(
-        self, mock_get_server_hardware, mock__authenticate
+        self, mock_get_server_hardware
     ):
         server_hardware = ServerHardware()
         server_hardware.uuid = "aaaa-bbbb-cccc"
@@ -726,14 +667,10 @@ class OneViewClientTestCase(unittest.TestCase):
             "'/my-real-enclosure-group' of ServerHardware aaaa-bbbb-cccc"
         )
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            oneview_client.validate_node_enclosure_group,
+            self.oneview_client.validate_node_enclosure_group,
             driver_info
         )
 
@@ -743,7 +680,6 @@ class OneViewClientTestCase(unittest.TestCase):
                        autospec=True)
     def test_is_node_port_mac_compatible_with_server_hardware(
         self, mock_server_hardware, mock_server_hardware_by_uuid,
-        mock__authenticate
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock, "uri", "/anyuri")
@@ -756,16 +692,12 @@ class OneViewClientTestCase(unittest.TestCase):
         mock_server_hardware.return_value = server_hardware_mock
         mock_server_hardware_by_uuid.return_value = server_hardware_mock
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
-        oneview_client.is_node_port_mac_compatible_with_server_hardware(
+        self.oneview_client.is_node_port_mac_compatible_with_server_hardware(
             {},
             [type('obj', (object,), {'_address': 'D8:9D:67:73:54:00'})]
         )
 
-        mock_server_hardware.assert_called_once_with(oneview_client, {})
+        mock_server_hardware.assert_called_once_with(self.oneview_client, {})
 
     @mock.patch.object(client.Client, 'get_server_hardware_by_uuid',
                        autospec=True)
@@ -773,7 +705,6 @@ class OneViewClientTestCase(unittest.TestCase):
                        autospec=True)
     def test_is_node_port_mac_incompatible_with_server_hardware(
         self, mock_server_hardware, mock_server_hardware_by_uuid,
-        mock__authenticate
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock, "uri", "/anyuri")
@@ -791,14 +722,10 @@ class OneViewClientTestCase(unittest.TestCase):
             " /anyuri."
         )
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            oneview_client
+            self.oneview_client
             .is_node_port_mac_compatible_with_server_hardware,
             {},
             [type('obj', (object,), {'_address': 'AA:BB:CC:DD:EE:FF'})]
@@ -807,7 +734,7 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware',
                        autospec=True)
     def test_check_node_port_mac_incompatible_with_server_profile(
-        self, mock_server_profile, mock__authenticate
+        self, mock_server_profile
     ):
         server_profile_mock = ServerProfile()
         setattr(server_profile_mock, "uri", "/anyuri")
@@ -826,14 +753,10 @@ class OneViewClientTestCase(unittest.TestCase):
             " server profile /anyuri."
         )
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            oneview_client
+            self.oneview_client
             .is_node_port_mac_compatible_with_server_profile,
             {},
             {}
@@ -842,7 +765,7 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware',
                        autospec=True)
     def test_check_node_port_mac_no_primary_boot_connection(
-        self, mock_server_profile, mock__authenticate
+        self, mock_server_profile
     ):
         server_profile_mock = ServerProfile()
         setattr(server_profile_mock, "uri", "/anyuri")
@@ -861,14 +784,10 @@ class OneViewClientTestCase(unittest.TestCase):
             " /anyuri."
         )
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            oneview_client
+            self.oneview_client
             .is_node_port_mac_compatible_with_server_profile,
             {},
             {}
@@ -878,7 +797,7 @@ class OneViewClientTestCase(unittest.TestCase):
                        autospec=True)
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_profile_template_inconsistent_sht(
-        self, mock_server_hardware, mock_server_template, mock__authenticate
+        self, mock_server_hardware, mock_server_template
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock,
@@ -908,14 +827,10 @@ class OneViewClientTestCase(unittest.TestCase):
             " serverHardwareTypeUri."
         )
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            oneview_client.validate_node_server_profile_template,
+            self.oneview_client.validate_node_server_profile_template,
             driver_info
         )
 
@@ -923,7 +838,7 @@ class OneViewClientTestCase(unittest.TestCase):
                        autospec=True)
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_profile_template_inconsistent_eg(
-        self, mock_server_hardware, mock_server_template, mock__authenticate
+        self, mock_server_hardware, mock_server_template
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock,
@@ -953,14 +868,10 @@ class OneViewClientTestCase(unittest.TestCase):
             " serverGroupUri."
         )
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            oneview_client.validate_node_server_profile_template,
+            self.oneview_client.validate_node_server_profile_template,
             driver_info
         )
 
@@ -968,7 +879,7 @@ class OneViewClientTestCase(unittest.TestCase):
                        autospec=True)
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_profile_template_no_primary_boot_connection(
-        self, mock_server_hardware, mock_server_template, mock__authenticate
+        self, mock_server_hardware, mock_server_template
     ):
         server_hardware_mock = ServerHardware()
         setattr(server_hardware_mock, "server_hardware_type_uri", "/sht_uri")
@@ -995,9 +906,6 @@ class OneViewClientTestCase(unittest.TestCase):
             " template /template_uri."
         )
 
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
         driver_info = {
             "server_profile_template_uri": "/profile_uri"
         }
@@ -1005,46 +913,35 @@ class OneViewClientTestCase(unittest.TestCase):
         self.assertRaisesRegexp(
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
-            oneview_client
+            self.oneview_client
             .validate_node_server_profile_template,
             driver_info
         )
 
     @mock.patch.object(client.Client, 'get_oneview_version')
-    def test_verify_oneview_version(self, mock_get_oneview_version,
-                                    mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
+    def test_verify_oneview_version(self, mock_get_oneview_version):
         mock_get_oneview_version.return_value = {
             'minimumVersion': 120,
             'currentVersion': 200
         }
-        oneview_client.verify_oneview_version()
+        self.oneview_client.verify_oneview_version()
         mock_get_oneview_version.assert_called_once_with()
 
     @mock.patch.object(client.Client, 'get_oneview_version')
-    def test_verify_oneview_version_fail(self, mock_get_oneview_version,
-                                         mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
+    def test_verify_oneview_version_fail(self, mock_get_oneview_version):
         mock_get_oneview_version.return_value = {
             'minimumVersion': 120,
             'currentVersion': 120
         }
         self.assertRaises(
             exceptions.IncompatibleOneViewAPIVersion,
-            oneview_client.verify_oneview_version
+            self.oneview_client.verify_oneview_version
         )
 
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
     def test_is_mac_compatible_with_server_profile(
-        self, mock_get_server_profile_from_hardware, mock__authenticate
+        self, mock_get_server_profile_from_hardware
     ):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
         server_profile_mock = ServerProfile()
         setattr(
             server_profile_mock,
@@ -1058,15 +955,12 @@ class OneViewClientTestCase(unittest.TestCase):
         port = TestablePort('AA:BB:CC:DD:EE:FF')
         node_info = None
         ports = [port]
-        oneview_client.is_node_port_mac_compatible_with_server_profile(
+        self.oneview_client.is_node_port_mac_compatible_with_server_profile(
             node_info, ports)
 
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
     def test_is_mac_compatible_with_server_profile_with_no_ports(
-            self, mock_get_server_profile_from_hardware, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
+            self, mock_get_server_profile_from_hardware):
         server_profile_mock = ServerProfile()
         setattr(
             server_profile_mock,
@@ -1081,17 +975,15 @@ class OneViewClientTestCase(unittest.TestCase):
         ports = []
         self.assertRaises(
             exceptions.OneViewInconsistentResource,
-            oneview_client.is_node_port_mac_compatible_with_server_profile,
+            self.oneview_client
+            .is_node_port_mac_compatible_with_server_profile,
             node_info,
             ports
         )
 
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
     def test_is_mac_compatible_with_server_profile_without_boot_in_connection(
-            self, mock_get_server_profile_from_hardware, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
+            self, mock_get_server_profile_from_hardware):
         server_profile_mock = ServerProfile()
         setattr(server_profile_mock, 'connections', [{}])
         setattr(server_profile_mock, 'uri', 'sp_uri')
@@ -1101,7 +993,8 @@ class OneViewClientTestCase(unittest.TestCase):
         ports = None
         self.assertRaises(
             exceptions.OneViewInconsistentResource,
-            oneview_client.is_node_port_mac_compatible_with_server_profile,
+            self.oneview_client
+            .is_node_port_mac_compatible_with_server_profile,
             node_info,
             ports
         )
@@ -1110,12 +1003,9 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch.object(client.Client, 'get_server_hardware')
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
     def test_is_mac_compatible_with_server_profile_without_connections(
-            self, mock_get_server_profile_from_hardware,
-            mock_get_server_hardware, mock_get_sh_mac_from_ilo,
-            mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
+        self, mock_get_server_profile_from_hardware,
+        mock_get_server_hardware, mock_get_sh_mac_from_ilo,
+    ):
         server_profile = ServerProfile()
         server_profile.connections = []  # No connections, SP for DL server
         server_profile.uri = 'sp_uri'
@@ -1133,7 +1023,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
         node_info = {'server_hardware_uri': '/rest/111-222-333'}
         ports = [TestablePort('aa:bb:cc:dd:ee')]
-        oneview_client.is_node_port_mac_compatible_with_server_profile(
+        self.oneview_client.is_node_port_mac_compatible_with_server_profile(
             node_info,
             ports
         )
@@ -1148,21 +1038,15 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch.object(requests, 'get')
     def test_get_sh_mac_from_ilo(
         self, mock_get, mock_get_ilo_access, mock_ilo_logout, mock_collection,
-        mock__authenticate
     ):
         defined_mac = "aa:bb:cc:dd:ee:ff"
         sh_uuid = 'aaa-bbb-ccc'
         my_host = 'https://my-host'
         key = '123'
-        oneview_client = client.Client(
-            self.manager_url,
-            self.username,
-            self.password
-        )
         mock_collection.return_value = \
             self.create_collection_for_sh_mac_from_ilo_test()
         mock_get_ilo_access.return_value = (my_host, key)
-        mac = oneview_client.get_sh_mac_from_ilo(sh_uuid)
+        mac = self.oneview_client.get_sh_mac_from_ilo(sh_uuid)
         mock_get_ilo_access.assert_called_once_with(sh_uuid)
         mock_ilo_logout.assert_called_once_with(my_host, key)
         self.assertEqual(mac, defined_mac)
