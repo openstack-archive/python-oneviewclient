@@ -44,8 +44,15 @@ SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
 
 
-class Client(object):
+def _get_oneview_resource_uuid_from_uri(uri):
+    return uri.split("/")[-1]
 
+
+def _get_oneview_resource_uri_from_uuid(resource_prefix, uuid):
+    return resource_prefix + str(uuid)
+
+
+class Client(object):
     def __init__(
         self, manager_url, username, password,
         allow_insecure_connections=False, tls_cacert_file='',
