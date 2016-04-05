@@ -168,14 +168,12 @@ PORT_MAP = {
 
 
 class TestablePort(object):
-
     def __init__(self, obj_address):
         self.obj_address = obj_address
         self._obj_address = obj_address
 
 
 class OneViewClientAuthTestCase(unittest.TestCase):
-
     def setUp(self):
         super(OneViewClientAuthTestCase, self).setUp()
         self.manager_url = 'https://1.2.3.4'
@@ -238,7 +236,6 @@ class OneViewClientAuthTestCase(unittest.TestCase):
 
 
 class OneViewClientTestCase(unittest.TestCase):
-
     @mock.patch.object(client.Client, '_authenticate', autospec=True)
     def setUp(self, mock__authenticate):
         super(OneViewClientTestCase, self).setUp()
@@ -1060,6 +1057,27 @@ class OneViewClientTestCase(unittest.TestCase):
         memberuri = 'xpto'
 
         yield status, headers, system, memberuri
+
+
+class OneViewClientFunctionsTestCase(unittest.TestCase):
+    def test__uuid_from_uri(self):
+        expected_resource_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+        resource_uri = '/rest/resource/' + expected_resource_uuid
+        self.assertEqual(
+            expected_resource_uuid,
+            client._uuid_from_uri(resource_uri)
+        )
+
+    def test__uri_from_uuid(self):
+        resource_prefix = '/rest/resource/'
+        resource_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+        expected_resource_uri = resource_prefix + resource_uuid
+        self.assertEqual(
+            expected_resource_uri,
+            client._uri_from_uuid(
+                resource_prefix, resource_uuid
+            )
+        )
 
 
 if __name__ == '__main__':
