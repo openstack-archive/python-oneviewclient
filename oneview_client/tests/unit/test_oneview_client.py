@@ -542,6 +542,41 @@ class OneViewClientTestCase(unittest.TestCase):
             oneview_client, uri="/rest/server-profile-templates/123"
         )
 
+    @mock.patch.object(requests, 'get')
+    def test_get_server_profile_nonexistent_by_uuid(
+        self, mock_get, mock__authenticate
+    ):
+        response = mock_get.return_value
+        response.status_code = http_client.NOT_FOUND
+        mock_get.return_value = response
+        uuid = 0
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            oneview_client.get_server_profile_by_uuid,
+            uuid
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_get_server_profile_by_uuid(
+        self, mock__prepare_do_request, mock__authenticate
+    ):
+        server_profile_uuid = 123
+        server_profile_uri = "/rest/server-profiles/" +\
+            str(server_profile_uuid)
+        mock__prepare_do_request.return_value = {
+            "uri": server_profile_uri
+        }
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        oneview_client.get_server_profile_by_uuid(server_profile_uuid)
+        mock__prepare_do_request.assert_called_once_with(
+            oneview_client, uri=server_profile_uri
+        )
+
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     def test__wait_for_task_to_complete(self, mock__prepare_do_request,
                                         mock__authenticate):
