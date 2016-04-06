@@ -42,6 +42,15 @@ PRESS_AND_HOLD = 'PressAndHold'
 
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
+SERVER_PROFILE_PREFIX_URI = '/rest/server-profiles/'
+NETWORK_PREFIX_URI = '/rest/ethernet-networks/'
+
+FIRST_PORT_ID = 'Flb 1:1-a'
+SECOND_PORT_ID = 'Flb 1:2-a'
+
+FUNCTION_TYPE_ETHERNET = 'Ethernet'
+
+BOOT_PRIORITY_PRIMARY = 'Primary'
 
 
 def _get_oneview_resource_uuid_from_uri(uri):
@@ -49,7 +58,7 @@ def _get_oneview_resource_uuid_from_uri(uri):
 
 
 def _get_oneview_resource_uri_from_uuid(resource_prefix, uuid):
-    return resource_prefix + uuid
+    return resource_prefix + str(uuid)
 
 
 class Client(object):
@@ -137,6 +146,55 @@ class Client(object):
             return versions
         except requests.RequestException as e:
             raise exceptions.OneViewConnectionError(e.message)
+
+    # --- Connection ---
+    def add_connection_to_server_profile(
+        self, server_profile_uuid, network_uuid, boot_priority, port_id,
+        function_type
+    ):
+        server_profile_uri = _get_oneview_resource_uri_from_uuid(
+            SERVER_PROFILE_PREFIX_URI, server_profile_uuid)
+        network_uri = _get_oneview_resource_uri_from_uuid(
+            NETWORK_PREFIX_URI, network_uuid)
+        server_profile_obj = self.get_server_profile_by_uuid(
+            server_profile_uuid)
+
+        new_connection = {
+            "functionType": function_type,
+            "portId": port_id,
+            "networkUri": network_uri,
+            "boot": {
+                "priority": boot_priority
+            }
+        }
+
+        server_profile_obj.connections.append(new_connection)
+
+        task = self._prepare_and_do_request(
+            uri=server_profile_uri, body=server_profile_obj.to_oneview_dict(),
+            request_type=PUT_REQUEST_TYPE
+        )
+        task_completed = self._wait_for_task_to_complete(task)
+        return task_completed.get('associatedResource').get('resourceUri')
+
+    def add_primary_ethernet_connection_to_server_profile(
+        self, server_profile_uuid, network_uuid
+    ):
+        server_profile_obj = self.get_server_profile_by_uuid(
+            server_profile_uuid
+        )
+        port_id = server_profile_obj.get_next_available_port_id()
+
+        if server_profile_obj.is_there_any_primary_connection():
+            raise exceptions.NoAvailablePrimaryConnectionInServerProfileError()
+        if port_id is None:
+            raise exceptions.NoAvailablePortsInOneViewError()
+
+        self.add_connection_to_server_profile(
+            server_profile_uuid, network_uuid,
+            boot_priority=BOOT_PRIORITY_PRIMARY, port_id=port_id,
+            function_type=FUNCTION_TYPE_ETHERNET
+        )
 
     # --- Power Driver ---
     def get_node_power_state(self, node_info):
@@ -242,6 +300,20 @@ class Client(object):
             raise exceptions.OneViewResourceNotFoundError(message)
 
         return ServerProfileTemplate.from_json(spt_json)
+
+    def get_server_profile_by_uuid(self, uuid):
+        server_profile_uri = _get_oneview_resource_uri_from_uuid(
+            SERVER_PROFILE_PREFIX_URI, uuid)
+
+        server_profile_json = self._prepare_and_do_request(
+            uri=server_profile_uri
+        )
+
+        if server_profile_json.get("uri") is None:
+            message = "OneView Server Profile resource not found."
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        return ServerProfile.from_json(server_profile_json)
 
     def get_boot_order(self, node_info):
         server_profile = self.get_server_profile_from_hardware(

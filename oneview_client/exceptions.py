@@ -90,5 +90,15 @@ class UnknowOneViewResponseError(OneViewException):
     message = ("OneView appliance returned an unknown response status")
 
 
+class NoAvailablePortsInOneViewError(OneViewException):
+    message = ("There are no ports available to use in a Server Profile "
+               "Connection")
+
+
+class NoAvailablePrimaryConnectionInServerProfileError(OneViewException):
+    message = ("There are no primary connection available to use in a Server "
+               "Profile Connection")
+
+
 class IloException(OneViewException):
     message = ("Unknown response from iLO")

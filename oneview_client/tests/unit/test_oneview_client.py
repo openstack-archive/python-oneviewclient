@@ -492,6 +492,35 @@ class OneViewClientTestCase(unittest.TestCase):
             self.oneview_client, uri="/rest/server-profile-templates/123"
         )
 
+    @mock.patch.object(requests, 'get')
+    def test_get_server_profile_nonexistent_by_uuid(
+        self, mock_get
+    ):
+        response = mock_get.return_value
+        response.status_code = http_client.NOT_FOUND
+        mock_get.return_value = response
+        uuid = 0
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            self.oneview_client.get_server_profile_by_uuid,
+            uuid
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_get_server_profile_by_uuid(
+        self, mock__prepare_do_request
+    ):
+        server_profile_uuid = 123
+        server_profile_uri = "/rest/server-profiles/" +\
+            str(server_profile_uuid)
+        mock__prepare_do_request.return_value = {
+            "uri": server_profile_uri
+        }
+        self.oneview_client.get_server_profile_by_uuid(server_profile_uuid)
+        mock__prepare_do_request.assert_called_once_with(
+            self.oneview_client, uri=server_profile_uri
+        )
+
     @mock.patch.object(client.Client, '_authenticate', autospec=True)
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     def test__wait_for_task_to_complete(self, mock__prepare_do_request,
@@ -1057,6 +1086,191 @@ class OneViewClientTestCase(unittest.TestCase):
         memberuri = 'xpto'
 
         yield status, headers, system, memberuri
+
+    def _mock_server_profile_obj(
+        self, obj_type='type', uri='uri', name='name', uuid='uuid',
+        server_hardware_uri='server_hardware_uri',
+        server_hardware_type_uri='server_hardware_type_uri',
+        enclosure_group_uri='enclosure_group_uri', connections=[]
+    ):
+        server_profile_obj = ServerProfile()
+        server_profile_obj.type = obj_type
+        server_profile_obj.uri = uri
+        server_profile_obj.name = name
+        server_profile_obj.uuid = uuid
+        server_profile_obj.server_hardware_uri = server_hardware_uri
+        server_profile_obj.server_hardware_type_uri = server_hardware_type_uri
+        server_profile_obj.enclosure_group_uri = enclosure_group_uri
+        server_profile_obj.connections = connections
+        return server_profile_obj
+
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    @mock.patch.object(
+        client.Client, '_wait_for_task_to_complete', autospec=True
+    )
+    def check_add_connection_to_server_profile(
+        self, mock__wait_for_task_to_complete, mock__prepare_and_do_request,
+        mock_get_server_profile_by_uuid, server_profile_connections
+    ):
+        server_profile_uuid = 'sp_uuid'
+        network_uuid = 'n_uuid'
+        boot_priority = 'priority'
+        port_id = 'portId'
+        function_type = 'functionType'
+
+        server_profile_uri = '/rest/server-profiles/' +\
+            str(server_profile_uuid)
+        network_uri = '/rest/ethernet-networks/' + str(network_uuid)
+
+        server_profile_obj = self._mock_server_profile_obj(
+            uri=server_profile_uri, uuid=server_profile_uuid,
+            connections=server_profile_connections
+        )
+        mock_get_server_profile_by_uuid.return_value = server_profile_obj
+
+        connection = {
+            'functionType': function_type,
+            'portId': port_id,
+            'networkUri': network_uri,
+            'boot': {
+                'priority': boot_priority
+            },
+        }
+
+        server_profile_obj.connections.append(connection)
+
+        self.oneview_client.add_connection_to_server_profile(
+            server_profile_uuid, network_uuid, boot_priority, port_id,
+            function_type
+        )
+
+        mock__prepare_and_do_request.assert_called_once_with(
+            self.oneview_client, uri=server_profile_uri,
+            body=server_profile_obj.to_oneview_dict(),
+            request_type=client.PUT_REQUEST_TYPE
+        )
+
+    def test_add_connection_to_server_profile_without_connections(self):
+        server_profile_connections = []
+        self.check_add_connection_to_server_profile(
+            server_profile_connections=server_profile_connections
+        )
+
+    def test_add_connection_to_server_profile_with_connections(self):
+        connection = {
+            "functionType": "functionType",
+            "portId": "portId",
+            "networkUri": "networkUri",
+            "boot": {"priority": "priority"}
+        }
+        server_profile_connections = [connection]
+        self.check_add_connection_to_server_profile(
+            server_profile_connections=server_profile_connections
+        )
+
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    @mock.patch.object(
+        client.Client, 'add_connection_to_server_profile', autospec=True
+    )
+    def check_add_primary_ethernet_connection_to_server_profile(
+        self, mock_add_connection_to_server_profile,
+        mock_get_server_profile_by_uuid, server_profile_connections,
+        expected_port_id
+    ):
+        server_profile_uuid = 'sp_uuid'
+        network_uuid = 'n_uuid'
+
+        server_profile_obj = ServerProfile()
+        server_profile_obj.connections = server_profile_connections
+        mock_get_server_profile_by_uuid.return_value = server_profile_obj
+
+        self.oneview_client.add_primary_ethernet_connection_to_server_profile(
+            server_profile_uuid, network_uuid
+        )
+
+        mock_add_connection_to_server_profile.assert_called_once_with(
+            self.oneview_client, server_profile_uuid, network_uuid,
+            boot_priority="Primary", port_id=expected_port_id,
+            function_type="Ethernet"
+        )
+
+    def test_add_primary_connection_to_server_profile_with_no_connections(
+        self
+    ):
+        server_profile_connections = []
+        expected_port_id = 'Flb 1:1-a'
+
+        self.check_add_primary_ethernet_connection_to_server_profile(
+            server_profile_connections=server_profile_connections,
+            expected_port_id=expected_port_id
+        )
+
+    def test_add_primary_connection_to_server_profile_with_firts_port_used(
+        self
+    ):
+        server_profile_connections = [{"portId": "Flb 1:1-a"}]
+        expected_port_id = 'Flb 1:2-a'
+
+        self.check_add_primary_ethernet_connection_to_server_profile(
+            server_profile_connections=server_profile_connections,
+            expected_port_id=expected_port_id
+        )
+
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    @mock.patch.object(
+        client.Client, 'add_connection_to_server_profile', autospec=True
+    )
+    def check_add_primary_ethernet_conn_to_server_profile_raises_error(
+        self, mock_add_connection_to_server_profile,
+        mock_get_server_profile_by_uuid, server_profile_connections,
+        expected_error
+    ):
+        server_profile_uuid = 'sp_uuid'
+        network_uuid = 'n_uuid'
+
+        server_profile_obj = ServerProfile()
+        server_profile_obj.connections = server_profile_connections
+        mock_get_server_profile_by_uuid.return_value = server_profile_obj
+
+        self.assertRaises(
+            expected_error,
+            self.oneview_client.
+            add_primary_ethernet_connection_to_server_profile,
+            server_profile_uuid, network_uuid
+        )
+
+    def test_add_primary_connection_to_server_profile_with_primary_connection(
+        self
+    ):
+        server_profile_connections = [{"boot": {"priority": "Primary"}}]
+        expected_error =\
+            exceptions.NoAvailablePrimaryConnectionInServerProfileError
+
+        self.check_add_primary_ethernet_conn_to_server_profile_raises_error(
+            server_profile_connections=server_profile_connections,
+            expected_error=expected_error
+        )
+
+    def test_add_primary_connection_to_server_profile_with_all_ports_used(
+        self
+    ):
+        server_profile_connections = [
+            {"portId": "Flb 1:1-a"}, {"portId": "Flb 1:2-a"}
+        ]
+        expected_error =\
+            exceptions.NoAvailablePortsInOneViewError
+
+        self.check_add_primary_ethernet_conn_to_server_profile_raises_error(
+            server_profile_connections=server_profile_connections,
+            expected_error=expected_error
+        )
 
 
 class OneViewClientFunctionsTestCase(unittest.TestCase):
