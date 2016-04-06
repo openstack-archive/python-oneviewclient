@@ -43,6 +43,10 @@ PRESS_AND_HOLD = 'PressAndHold'
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
 SERVER_PROFILE_PREFIX_URI = '/rest/server-profiles/'
+NETWORK_PREFIX_URI = '/rest/ethernet-networks/'
+
+FIRT_PORT_ID = 'Flb 1:1-a'
+SECOND_PORT_ID = 'Flb 1:2-a'
 
 
 def _get_oneview_resource_uuid_from_resource_uri(uri):
@@ -138,6 +142,93 @@ class Client(object):
             return versions
         except requests.RequestException as e:
             raise exceptions.OneViewConnectionError(e.message)
+
+    # --- Connection ---
+    def add_connection_to_server_profile(
+        self, server_profile_uuid, network_uuid, priority, portId,
+        functionType
+    ):
+        server_profile_uri = _get_oneview_resource_uri_from_resource_uuid(
+            SERVER_PROFILE_PREFIX_URI, server_profile_uuid)
+        network_uri = _get_oneview_resource_uri_from_resource_uuid(
+            NETWORK_PREFIX_URI, network_uuid)
+        server_profile_obj = self.get_server_profile_by_uuid(
+            server_profile_uuid)
+
+        connections = [{
+            "functionType": functionType,
+            "portId": portId,
+            "networkUri": network_uri,
+            "boot": {
+                "priority": priority
+            }
+        }]
+
+        server_profile_update_json = {
+            "type": server_profile_obj.type,
+            "uri": server_profile_uri,
+            "name": server_profile_obj.name,
+            "uuid": server_profile_obj.uuid,
+            "serverHardwareUri": server_profile_obj.server_hardware_uri,
+            "serverHardwareTypeUri":
+                server_profile_obj.server_hardware_type_uri,
+            "enclosureGroupUri": server_profile_obj.enclosure_group_uri,
+            "eTag": server_profile_obj.e_tag,
+            "connections": connections
+        }
+
+        task = self._prepare_and_do_request(
+            uri=server_profile_uri, body=server_profile_update_json,
+            request_type=PUT_REQUEST_TYPE
+        )
+        task_completed = self._wait_for_task_to_complete(task)
+        return task_completed.get('associatedResource').get('resourceUri')
+
+    def add_primary_connection_to_server_profile(
+        self, server_profile_uuid, network_uuid
+    ):
+        portId = self.get_next_available_port_id(server_profile_uuid)
+        if portId is None:
+            raise exceptions.OneViewResponseNoPortsAvailablesError()
+
+        self.add_connection_to_server_profile(
+            server_profile_uuid, network_uuid, priority='Primary',
+            portId=portId, functionType='Ethernet')
+
+    def is_there_any_primary_connection_in_server_profile(
+        self, server_profile_uuid
+    ):
+        server_profile_obj = self.get_server_profile_by_uuid(
+            server_profile_uuid
+        )
+        for connection in server_profile_obj.connections:
+            boot = connection.get('boot')
+            if boot is None:
+                continue
+            if connection.get('boot').get('priority') == 'Primary':
+                return True
+
+        return False
+
+    def is_port_id_used_in_server_profile(self, port_id, server_profile_uuid):
+        server_profile_obj = self.get_server_profile_by_uuid(
+            server_profile_uuid
+        )
+        for connection in server_profile_obj.connections:
+            if connection.get('portId') == port_id:
+                return True
+        return False
+
+    def get_next_available_port_id(self, server_profile_uuid):
+        if self.is_there_any_primary_connection_in_server_profile(
+           server_profile_uuid):
+            return None
+        if not self.is_port_id_used_in_server_profile(
+           FIRT_PORT_ID, server_profile_uuid):
+            return FIRT_PORT_ID
+        if not self.is_port_id_used_in_server_profile(
+           SECOND_PORT_ID, server_profile_uuid):
+            return SECOND_PORT_ID
 
     # --- Power Driver ---
     def get_node_power_state(self, node_info):

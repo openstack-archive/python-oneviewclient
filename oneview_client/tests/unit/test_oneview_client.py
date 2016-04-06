@@ -1209,6 +1209,330 @@ class OneViewClientTestCase(unittest.TestCase):
 
         yield status, headers, system, memberuri
 
+    def _mock_server_profile_obj(
+        self, obj_type='type', uri='uri', name='name', uuid='uuid',
+        server_hardware_uri='server_hardware_uri',
+        server_hardware_type_uri='server_hardware_type_uri',
+        enclosure_group_uri='enclosure_group_uri', e_tag='e_tag'
+    ):
+        mock_server_profile_obj = mock.MagicMock()
+        mock_server_profile_obj.type = obj_type
+        mock_server_profile_obj.uri = uri
+        mock_server_profile_obj.name = name
+        mock_server_profile_obj.uuid = uuid
+        mock_server_profile_obj.server_hardware_uri = server_hardware_uri
+        mock_server_profile_obj.server_hardware_type_uri =\
+            server_hardware_type_uri
+        mock_server_profile_obj.enclosure_group_uri = enclosure_group_uri
+        mock_server_profile_obj.e_tag = e_tag
+        return mock_server_profile_obj
+
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    @mock.patch.object(
+        client.Client, '_wait_for_task_to_complete', autospec=True
+    )
+    def test_add_connection_to_server_profile(
+        self, mock__wait_for_task_to_complete,
+        mock__prepare_and_do_request, mock_get_server_profile_by_uuid,
+        mock__authenticate
+    ):
+        server_profile_uuid = 'sp_uuid'
+        network_uuid = 'n_uuid'
+        priority = 'priority'
+        portId = 'portId'
+        functionType = 'functionType'
+
+        server_profile_uri = '/rest/server-profiles/' +\
+            str(server_profile_uuid)
+        network_uri = '/rest/ethernet-networks/' + str(network_uuid)
+
+        mock_server_profile_obj = self._mock_server_profile_obj(
+            uri=server_profile_uri, uuid=server_profile_uuid
+        )
+        mock_get_server_profile_by_uuid.return_value = mock_server_profile_obj
+
+        mock_connections = [{
+            'functionType': functionType,
+            'portId': portId,
+            'networkUri': network_uri,
+            'boot': {
+                'priority': priority
+            },
+        }]
+
+        mock_server_profile_update_json = {
+            'type': mock_server_profile_obj.type,
+            'uri': mock_server_profile_obj.uri,
+            'name': mock_server_profile_obj.name,
+            'uuid': mock_server_profile_obj.uuid,
+            'serverHardwareUri': mock_server_profile_obj.server_hardware_uri,
+            'serverHardwareTypeUri':
+                mock_server_profile_obj.server_hardware_type_uri,
+            'enclosureGroupUri': mock_server_profile_obj.enclosure_group_uri,
+            'eTag': mock_server_profile_obj.e_tag,
+            'connections': mock_connections
+        }
+
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+
+        oneview_client.add_connection_to_server_profile(
+            server_profile_uuid, network_uuid, priority, portId, functionType
+        )
+
+        mock__prepare_and_do_request.assert_called_once_with(
+            oneview_client, uri=server_profile_uri,
+            body=mock_server_profile_update_json,
+            request_type=client.PUT_REQUEST_TYPE
+        )
+
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    def test_is_there_any_primary_conn_in_server_profile_without_connection(
+        self, mock_get_server_profile_by_uuid, mock__authenticate
+    ):
+        mock_connections = []
+
+        mock_server_profile_obj = mock.MagicMock()
+        mock_server_profile_obj.connections = mock_connections
+
+        mock_get_server_profile_by_uuid.return_value = mock_server_profile_obj
+
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+
+        self.assertFalse(
+            oneview_client.is_there_any_primary_connection_in_server_profile(
+                'uuid'
+            )
+        )
+
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    def test_is_primary_conn_in_server_profile_without_primary_connection(
+        self, mock_get_server_profile_by_uuid, mock__authenticate
+    ):
+        mock_connections = [{'boot': {'priority': 'Secondary'}}]
+
+        mock_server_profile_obj = mock.MagicMock()
+        mock_server_profile_obj.connections = mock_connections
+
+        mock_get_server_profile_by_uuid.return_value = mock_server_profile_obj
+
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+
+        self.assertFalse(
+            oneview_client.is_there_any_primary_connection_in_server_profile(
+                'uuid'
+            )
+        )
+
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    def test_is_primary_conn_in_server_profile_with_primary_connection(
+        self, mock_get_server_profile_by_uuid, mock__authenticate
+    ):
+        mock_connections = [{'boot': {'priority': 'Primary'}}]
+
+        mock_server_profile_obj = mock.MagicMock()
+        mock_server_profile_obj.connections = mock_connections
+
+        mock_get_server_profile_by_uuid.return_value = mock_server_profile_obj
+
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+
+        self.assertTrue(
+            oneview_client.is_there_any_primary_connection_in_server_profile(
+                'uuid'
+            )
+        )
+
+    @mock.patch.object(client.Client, '_authenticate', autospec=True)
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    def check_if_port_id_is_used_in_server_profile(
+        self, mock_get_server_profile_by_uuid, mock__authenticate,
+        port_id, server_profile_connections, expected_result
+    ):
+        mock_server_profile_obj = mock.MagicMock()
+        mock_server_profile_obj.connections = server_profile_connections
+
+        mock_get_server_profile_by_uuid.return_value = mock_server_profile_obj
+
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+
+        result = oneview_client.is_port_id_used_in_server_profile(
+            port_id, server_profile_connections
+        )
+        self.assertEqual(expected_result, result)
+
+    def test_is_first_port_id_used_in_server_profile_with_empty_connections(
+        self, mock__authenticate
+    ):
+        mock_connections = []
+        self.check_if_port_id_is_used_in_server_profile(
+            port_id='Flb 1:1-a', server_profile_connections=mock_connections,
+            expected_result=False
+        )
+
+    def test_is_all_port_id_used_in_server_profile_with_all_ports_used(
+        self, mock__authenticate
+    ):
+        mock_connections = [{'portId': 'Flb 1:1-a'}, {'portId': 'Flb 1:2-a'}]
+        self.check_if_port_id_is_used_in_server_profile(
+            port_id='Flb 1:1-a', server_profile_connections=mock_connections,
+            expected_result=True
+        )
+        self.check_if_port_id_is_used_in_server_profile(
+            port_id='Flb 1:2-a', server_profile_connections=mock_connections,
+            expected_result=True
+        )
+
+    @mock.patch.object(client.Client, '_authenticate', autospec=True)
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    def check_next_available_port_id(
+        self, mock_get_server_profile_by_uuid, mock__authenticate,
+        server_profile_connections, expected_result
+    ):
+        mock_server_profile_obj = mock.MagicMock()
+        mock_server_profile_obj.connections = server_profile_connections
+
+        mock_get_server_profile_by_uuid.return_value = mock_server_profile_obj
+
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+
+        next_available_port_id = oneview_client.get_next_available_port_id(
+            'uuid'
+        )
+        self.assertEqual(expected_result, next_available_port_id)
+
+    def test_get_next_available_port_id_with_empty_connections(
+        self, mock__authenticate
+    ):
+        mock_connections = []
+        self.check_next_available_port_id(
+            server_profile_connections=mock_connections,
+            expected_result='Flb 1:1-a'
+        )
+
+    def test_get_next_available_port_id_with_primary_connection(
+        self, mock__authenticate
+    ):
+        mock_connections = [{'boot': {'priority': 'Primary'}}]
+        self.check_next_available_port_id(
+            server_profile_connections=mock_connections,
+            expected_result=None
+        )
+
+    def test_get_next_available_port_id_with_first_port_used(
+        self, mock__authenticate
+    ):
+        mock_connections = [{'portId': 'Flb 1:1-a'}]
+        self.check_next_available_port_id(
+            server_profile_connections=mock_connections,
+            expected_result='Flb 1:2-a'
+        )
+
+    def test_get_next_available_port_id_with_all_ports_used(
+        self, mock__authenticate
+    ):
+        mock_connections = [{'portId': 'Flb 1:1-a'}, {'portId': 'Flb 1:2-a'}]
+        self.check_next_available_port_id(
+            server_profile_connections=mock_connections,
+            expected_result=None
+        )
+
+    @mock.patch.object(
+        client.Client, 'get_next_available_port_id', autospec=True
+    )
+    @mock.patch.object(
+        client.Client, 'add_connection_to_server_profile', autospec=True
+    )
+    def test_add_primary_connection_to_server_profile(
+        self, mock_add_connection_to_server_profile,
+        mock_get_next_available_port_id, mock__authenticate
+    ):
+        server_profile_uuid = 'sp_uuid'
+        network_uuid = 'n_uuid'
+        portId = 'Flb 1:1-a'
+
+        mock_get_next_available_port_id.return_value = portId
+
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+
+        oneview_client.add_primary_connection_to_server_profile(
+            server_profile_uuid, network_uuid
+        )
+
+        mock_add_connection_to_server_profile.assert_called_once_with(
+            oneview_client, server_profile_uuid=server_profile_uuid,
+            network_uuid=network_uuid, priority='Primary', portId=portId,
+            functionType='Ethernet'
+        )
+
+    @mock.patch.object(
+        client.Client, 'get_next_available_port_id', autospec=True
+    )
+    @mock.patch.object(
+        client.Client, 'add_connection_to_server_profile', autospec=True
+    )
+    def test_add_primary_connection_to_server_profile_with_no_available_ports(
+        self, mock_add_connection_to_server_profile,
+        mock_get_next_available_port_id, mock__authenticate
+    ):
+        server_profile_uuid = 'sp_uuid'
+        network_uuid = 'n_uuid'
+        portId = None
+
+        mock_get_next_available_port_id.return_value = portId
+
+        oneview_client = client.Client(
+            self.manager_url,
+            self.username,
+            self.password
+        )
+
+        self.assertRaises(
+            exceptions.OneViewResponseNoPortsAvailablesError,
+            oneview_client.add_primary_connection_to_server_profile,
+            server_profile_uuid, network_uuid
+        )
+
 
 class OneViewClientFunctionsTestCase(unittest.TestCase):
     def test__get_oneview_resource_uuid_from_resource_uri(self):
