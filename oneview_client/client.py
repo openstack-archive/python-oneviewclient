@@ -42,6 +42,7 @@ PRESS_AND_HOLD = 'PressAndHold'
 
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
+SERVER_PROFILE_PREFIX_URI = '/rest/server-profiles/'
 
 
 def _uuid_from_uri(uri):
@@ -242,6 +243,20 @@ class Client(object):
             raise exceptions.OneViewResourceNotFoundError(message)
 
         return ServerProfileTemplate.from_json(spt_json)
+
+    def get_server_profile_by_uuid(self, uuid):
+        server_profile_uri = _uri_from_uuid(
+            SERVER_PROFILE_PREFIX_URI, uuid)
+
+        server_profile_json = self._prepare_and_do_request(
+            uri=server_profile_uri
+        )
+
+        if server_profile_json.get("uri") is None:
+            message = "OneView Server Profile resource not found."
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        return ServerProfile.from_json(server_profile_json)
 
     def get_boot_order(self, node_info):
         server_profile = self.get_server_profile_from_hardware(
