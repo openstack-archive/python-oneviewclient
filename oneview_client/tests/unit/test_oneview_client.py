@@ -168,14 +168,12 @@ PORT_MAP = {
 
 
 class TestablePort(object):
-
     def __init__(self, obj_address):
         self.obj_address = obj_address
         self._obj_address = obj_address
 
 
 class OneViewClientAuthTestCase(unittest.TestCase):
-
     def setUp(self):
         super(OneViewClientAuthTestCase, self).setUp()
         self.manager_url = 'https://1.2.3.4'
@@ -238,7 +236,6 @@ class OneViewClientAuthTestCase(unittest.TestCase):
 
 
 class OneViewClientTestCase(unittest.TestCase):
-
     @mock.patch.object(client.Client, '_authenticate', autospec=True)
     def setUp(self, mock__authenticate):
         super(OneViewClientTestCase, self).setUp()
@@ -493,6 +490,35 @@ class OneViewClientTestCase(unittest.TestCase):
         self.oneview_client.get_server_profile_template_by_uuid(uuid)
         mock__prepare_do_request.assert_called_once_with(
             self.oneview_client, uri="/rest/server-profile-templates/123"
+        )
+
+    @mock.patch.object(requests, 'get')
+    def test_get_server_profile_nonexistent_by_uuid(
+        self, mock_get
+    ):
+        response = mock_get.return_value
+        response.status_code = http_client.NOT_FOUND
+        mock_get.return_value = response
+        uuid = 0
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            self.oneview_client.get_server_profile_by_uuid,
+            uuid
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_get_server_profile_by_uuid(
+        self, mock__prepare_do_request
+    ):
+        server_profile_uuid = 123
+        server_profile_uri = "/rest/server-profiles/" +\
+            str(server_profile_uuid)
+        mock__prepare_do_request.return_value = {
+            "uri": server_profile_uri
+        }
+        self.oneview_client.get_server_profile_by_uuid(server_profile_uuid)
+        mock__prepare_do_request.assert_called_once_with(
+            self.oneview_client, uri=server_profile_uri
         )
 
     @mock.patch.object(client.Client, '_authenticate', autospec=True)
@@ -1060,6 +1086,27 @@ class OneViewClientTestCase(unittest.TestCase):
         memberuri = 'xpto'
 
         yield status, headers, system, memberuri
+
+
+class OneViewClientFunctionsTestCase(unittest.TestCase):
+    def test__get_oneview_resource_uuid_from_uri(self):
+        expected_resource_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+        resource_uri = '/rest/resource/' + expected_resource_uuid
+        self.assertEqual(
+            expected_resource_uuid,
+            client._get_oneview_resource_uuid_from_uri(resource_uri)
+        )
+
+    def test__get_oneview_resource_uri_from_uuid(self):
+        resource_prefix = '/rest/resource/'
+        resource_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+        expected_resource_uri = resource_prefix + resource_uuid
+        self.assertEqual(
+            expected_resource_uri,
+            client._get_oneview_resource_uri_from_uuid(
+                resource_prefix, resource_uuid
+            )
+        )
 
 
 if __name__ == '__main__':
