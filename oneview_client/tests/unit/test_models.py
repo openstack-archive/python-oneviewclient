@@ -182,3 +182,67 @@ class Test(unittest.TestCase):
         profile.uri = 'http://somehting.com/111-222-333-444'
         self.assertEqual(profile.to_oneview_dict(),
                          {'uri': 'http://somehting.com/111-222-333-444'})
+
+    def test_is_there_any_primary_conn_without_conn(self):
+        server_profile = ServerProfile()
+        server_profile.connections = []
+        self.assertFalse(
+            server_profile.is_there_any_primary_connection()
+        )
+
+    def test_is_there_any_primary_conn_with_prima_conn(self):
+        server_profile = ServerProfile()
+        server_profile.connections = [{'boot': {'priority': 'Primary'}}]
+        self.assertTrue(
+            server_profile.is_there_any_primary_connection()
+        )
+
+    def test_is_there_any_prima_conn_without_prim_conn(self):
+        server_profile = ServerProfile()
+        server_profile.connections = [{'boot': {'priority': 'Secondary'}}]
+        self.assertFalse(
+            server_profile.is_there_any_primary_connection()
+        )
+
+    def test_is_first_port_id_used_without_ports(self):
+        server_profile = ServerProfile()
+        server_profile.connections = []
+        self.assertFalse(server_profile.is_port_id_used('Flb 1:1-a'))
+
+    def test_is_all_port_id_used_with_all_ports_used(self):
+        server_profile = ServerProfile()
+        server_profile.connections = [
+            {'portId': 'Flb 1:1-a'}, {'portId': 'Flb 1:2-a'}
+        ]
+        self.assertTrue(server_profile.is_port_id_used('Flb 1:1-a'))
+        self.assertTrue(server_profile.is_port_id_used('Flb 1:2-a'))
+
+    def check_next_available_port_id(
+        self, connections, expected_result
+    ):
+        server_profile = ServerProfile()
+        server_profile.connections = connections
+        self.assertEqual(
+            expected_result, server_profile.get_next_available_port_id()
+        )
+
+    def test_get_next_available_port_id_with_empty_connections(self):
+        connections = []
+        self.check_next_available_port_id(
+            connections=connections,
+            expected_result='Flb 1:1-a'
+        )
+
+    def test_get_next_available_port_id_with_first_port_used(self):
+        connections = [{'portId': 'Flb 1:1-a'}]
+        self.check_next_available_port_id(
+            connections=connections,
+            expected_result='Flb 1:2-a'
+        )
+
+    def test_get_next_available_port_id_with_all_ports_used(self):
+        connections = [{'portId': 'Flb 1:1-a'}, {'portId': 'Flb 1:2-a'}]
+        self.check_next_available_port_id(
+            connections=connections,
+            expected_result=None
+        )

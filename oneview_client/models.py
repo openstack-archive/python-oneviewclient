@@ -17,6 +17,14 @@
 from oneview_client import exceptions
 
 
+FIRST_PORT_ID = 'Flb 1:1-a'
+SECOND_PORT_ID = 'Flb 1:2-a'
+
+FUNCTION_TYPE_ETHERNET = 'Ethernet'
+
+BOOT_PRIORITY_PRIMARY = 'Primary'
+
+
 class OneViewObject(object):
     """DO NOT INSTANTIATE. THIS IS AN ABSTRACT CLASS"""
 
@@ -143,3 +151,25 @@ class ServerProfile(OneViewObject):
         for k, v in dictionary.items():
             if v == value:
                 return k
+
+    def is_there_any_primary_connection(self):
+        for connection in self.connections:
+            boot = connection.get('boot')
+            if boot is None:
+                continue
+            if connection.get('boot').get('priority') == 'Primary':
+                return True
+        return False
+
+    def is_port_id_used(self, port_id):
+        for connection in self.connections:
+            if connection.get('portId') == port_id:
+                return True
+        return False
+
+    def get_next_available_port_id(self):
+        if not self.is_port_id_used(FIRST_PORT_ID):
+            return FIRST_PORT_ID
+        if not self.is_port_id_used(SECOND_PORT_ID):
+            return SECOND_PORT_ID
+        return None
