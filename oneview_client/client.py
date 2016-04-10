@@ -84,10 +84,10 @@ class Client(object):
 
         verify_ssl = self._get_verify_connection_option()
 
-        r = requests.post(url,
-                          data=json.dumps(body),
-                          headers=headers,
-                          verify=verify_ssl)
+        r = requests.request(
+            POST_REQUEST_TYPE, url, data=json.dumps(body), headers=headers,
+            verify=verify_ssl
+        )
         if r.status_code == 400:
             raise exceptions.OneViewNotAuthorizedException()
         else:
@@ -124,8 +124,8 @@ class Client(object):
         verify_ssl = self._get_verify_connection_option()
 
         try:
-            versions = requests.get(
-                url, headers=headers, verify=verify_ssl
+            versions = requests.request(
+                GET_REQUEST_TYPE, url, headers=headers, verify=verify_ssl
             ).json()
             return versions
         except requests.RequestException as e:
@@ -492,24 +492,10 @@ class Client(object):
             wait_fixed=WAIT_DO_REQUEST_IN_MILLISECONDS
         )
         def request(url, headers, body, request_type):
-
-            if request_type == PUT_REQUEST_TYPE:
-                response = requests.put(
-                    url, data=body, headers=headers, verify=verify_status
-                )
-            elif request_type == POST_REQUEST_TYPE:
-                response = requests.post(
-                    url, data=body, headers=headers, verify=verify_status
-                )
-            elif request_type == DELETE_REQUEST_TYPE:
-                response = requests.delete(
-                    url, headers=headers, verify=verify_status
-                )
-            else:
-                response = requests.get(
-                    url, headers=headers, verify=verify_status
-                )
-            return response
+            return requests.request(
+                request_type, url, data=body, headers=headers,
+                verify=verify_status
+            )
         return request(url, headers, body, request_type)
 
     def _wait_for_task_to_complete(self, task):

@@ -166,6 +166,11 @@ PORT_MAP = {
     }]
 }
 
+GET_REQUEST_TYPE = 'GET'
+PUT_REQUEST_TYPE = 'PUT'
+POST_REQUEST_TYPE = 'POST'
+DELETE_REQUEST_TYPE = 'DELETE'
+
 
 class TestablePort(object):
 
@@ -182,36 +187,36 @@ class OneViewClientAuthTestCase(unittest.TestCase):
         self.username = 'user'
         self.password = 'password'
 
-    @mock.patch.object(requests, 'post')
-    def test_authenticate(self, mock_post):
+    @mock.patch.object(requests, 'request')
+    def test_authenticate(self, mock_request):
         client.Client(self.manager_url,
                       self.username,
                       self.password)
-        mock_post.assert_called_once_with(
-            'https://1.2.3.4/rest/login-sessions',
+        mock_request.assert_called_once_with(
+            POST_REQUEST_TYPE, 'https://1.2.3.4/rest/login-sessions',
             data=json.dumps({"userName": "user", "password": "password"}),
             headers={'content-type': 'application/json'},
             verify=True
         )
 
-    @mock.patch.object(requests, 'post')
-    def test_authenticate_insecure(self, mock_post):
+    @mock.patch.object(requests, 'request')
+    def test_authenticate_insecure(self, mock_request):
         client.Client(self.manager_url,
                       self.username,
                       self.password,
                       allow_insecure_connections=True)
-        mock_post.assert_called_once_with(
-            'https://1.2.3.4/rest/login-sessions',
+        mock_request.assert_called_once_with(
+            POST_REQUEST_TYPE, 'https://1.2.3.4/rest/login-sessions',
             data=json.dumps({"userName": "user", "password": "password"}),
             headers={'content-type': 'application/json'},
             verify=False
         )
 
-    @mock.patch.object(requests, 'post')
-    def test_authenticate_invalid_credentials(self, mock_post):
-        response = mock_post.return_value
+    @mock.patch.object(requests, 'request')
+    def test_authenticate_invalid_credentials(self, mock_request):
+        response = mock_request.return_value
         response.status_code = http_client.BAD_REQUEST
-        mock_post.return_value = response
+        mock_request.return_value = response
 
         self.assertRaises(
             exceptions.OneViewNotAuthorizedException,
@@ -322,7 +327,7 @@ class OneViewClientTestCase(unittest.TestCase):
             request_type=client.PUT_REQUEST_TYPE,
         )
 
-    @mock.patch.object(requests, 'put', autospec=True)
+    @mock.patch.object(requests, 'request', autospec=True)
     def test_set_power_state_nonexistent_server_hardware(
         self, mock_do_request
     ):
@@ -364,11 +369,11 @@ class OneViewClientTestCase(unittest.TestCase):
             self.oneview_client.set_node_power_state, driver_info, target_state
         )
 
-    @mock.patch.object(requests, 'get')
-    def test_get_server_hardware_nonexistent(self, mock_get):
-        response = mock_get.return_value
+    @mock.patch.object(requests, 'request')
+    def test_get_server_hardware_nonexistent(self, mock_request):
+        response = mock_request.return_value
         response.status_code = http_client.NOT_FOUND
-        mock_get.return_value = response
+        mock_request.return_value = response
         driver_info = {"server_hardware_uri": ""}
 
         self.assertRaises(
@@ -377,11 +382,11 @@ class OneViewClientTestCase(unittest.TestCase):
             driver_info
         )
 
-    @mock.patch.object(requests, 'get')
-    def test_get_server_hardware_nonexistent_by_uuid(self, mock_get):
-        response = mock_get.return_value
+    @mock.patch.object(requests, 'request')
+    def test_get_server_hardware_nonexistent_by_uuid(self, mock_request):
+        response = mock_request.return_value
         response.status_code = http_client.NOT_FOUND
-        mock_get.return_value = response
+        mock_request.return_value = response
         uuid = 0
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
@@ -470,11 +475,13 @@ class OneViewClientTestCase(unittest.TestCase):
             new_first_boot_device
         )
 
-    @mock.patch.object(requests, 'get')
-    def test_get_server_profile_template_nonexistent_by_uuid(self, mock_get):
-        response = mock_get.return_value
+    @mock.patch.object(requests, 'request')
+    def test_get_server_profile_template_nonexistent_by_uuid(
+        self, mock_request
+    ):
+        response = mock_request.return_value
         response.status_code = http_client.NOT_FOUND
-        mock_get.return_value = response
+        mock_request.return_value = response
         uuid = 0
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
@@ -533,9 +540,9 @@ class OneViewClientTestCase(unittest.TestCase):
         oneview_client._wait_for_task_to_complete(task0)
 
     @mock.patch.object(client.Client, '_authenticate', autospec=True)
-    @mock.patch.object(requests, 'get')
+    @mock.patch.object(requests, 'request')
     def test__wait_for_task_to_complete_timeout(
-        self, mock_get, mock__authenticate
+        self, mock_request, mock__authenticate
     ):
         task = {
             "uri": "/any_uri",
@@ -547,16 +554,16 @@ class OneViewClientTestCase(unittest.TestCase):
                                        self.password,
                                        max_polling_attempts=2)
 
-        response = mock_get.return_value
+        response = mock_request.return_value
         response.status_code = http_client.REQUEST_TIMEOUT
-        mock_get.return_value = response
+        mock_request.return_value = response
 
         self.assertRaises(
             retrying.RetryError,
             oneview_client._wait_for_task_to_complete,
             task,
         )
-        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(mock_request.call_count, 2)
 
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_hardware_inconsistent_memorymb_value(
@@ -1035,9 +1042,10 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch('oneview_client.ilo_utils.collection', autospec=True)
     @mock.patch('oneview_client.ilo_utils.ilo_logout', autospec=True)
     @mock.patch.object(client.Client, '_get_ilo_access')
-    @mock.patch.object(requests, 'get')
+    @mock.patch.object(requests, 'request')
     def test_get_sh_mac_from_ilo(
-        self, mock_get, mock_get_ilo_access, mock_ilo_logout, mock_collection,
+        self, mock_request, mock_get_ilo_access, mock_ilo_logout,
+        mock_collection,
     ):
         defined_mac = "aa:bb:cc:dd:ee:ff"
         sh_uuid = 'aaa-bbb-ccc'
