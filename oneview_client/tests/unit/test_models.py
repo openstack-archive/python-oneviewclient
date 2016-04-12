@@ -26,7 +26,6 @@ from oneview_client.models import ServerProfileTemplate
 
 
 class Test(unittest.TestCase):
-
     def test_enclosuregroup_from_json(self):
         json = {
             'uri': 'http://something.com/1111-2222-3333-4444',
