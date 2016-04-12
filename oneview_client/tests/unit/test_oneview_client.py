@@ -1212,6 +1212,68 @@ class OneViewClientTestCase(unittest.TestCase):
             request_type=client.DELETE_REQUEST_TYPE
         )
 
+    @mock.patch.object(requests, 'get')
+    def test_get_uplink_set_nonexistent_by_uuid(self, mock_get):
+        response = mock_get.return_value
+        response.status_code = http_client.NOT_FOUND
+        mock_get.return_value = response
+        uuid = '0'
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            self.oneview_client.get_uplink_set,
+            uuid
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    @mock.patch.object(client.Client, 'get_uplink_set', autospec=True)
+    def test_add_network_to_uplink_set(
+        self, mock_get_uplink_set, mock__prepare_do_request
+    ):
+        uplink_set_uuid = 'uplink-set-uuid'
+        network_uuid = 'network-uuid'
+
+        fake_uplink_set_json = {
+            "type": "fake_type",
+            "name": "fake_name",
+            "networkUris": [],
+            "portConfigInfos": [],
+            "networkType": "fake_network_type",
+            "manualLoginRedistributionState": "fake_state",
+            "logicalInterconnectUri": "fake_lig_uri",
+            "connectionMode": "fake_connection",
+            "fcNetworkUris": [],
+            "eTag": "fake_eTag",
+            "ethernetNetworkType": "fake_ethernet_type",
+        }
+
+        mock_get_uplink_set.return_value = fake_uplink_set_json
+
+        self.oneview_client.add_network_to_uplink_set(
+            uplink_set_uuid, network_uuid
+        )
+        uplink_set_uri = '/rest/uplink-sets/' + uplink_set_uuid
+        update_uplink_set_json = {
+            "type": fake_uplink_set_json.get("type"),
+            "name": fake_uplink_set_json.get("name"),
+            "networkUris": ['/rest/ethernet-networks/' + network_uuid],
+            "portConfigInfos": fake_uplink_set_json.get("portConfigInfos"),
+            "networkType": fake_uplink_set_json.get("networkType"),
+            "manualLoginRedistributionState":
+                fake_uplink_set_json.get("manualLoginRedistributionState"),
+            "logicalInterconnectUri":
+                fake_uplink_set_json.get("logicalInterconnectUri"),
+            "connectionMode": fake_uplink_set_json.get("connectionMode"),
+            "fcNetworkUris": fake_uplink_set_json.get("fcNetworkUris"),
+            "eTag": fake_uplink_set_json.get('eTag'),
+            "ethernetNetworkType":
+                fake_uplink_set_json.get("ethernetNetworkType")
+        }
+        mock__prepare_do_request.assert_any_call(
+            self.oneview_client, uri=uplink_set_uri,
+            body=update_uplink_set_json,
+            request_type=client.PUT_REQUEST_TYPE
+        )
+
 
 class OneViewClientFunctionsTestCase(unittest.TestCase):
     def test__uuid_from_uri(self):

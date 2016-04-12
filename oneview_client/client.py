@@ -47,6 +47,7 @@ ETHERNET_NETWORK_PREFIX_URI = '/rest/ethernet-networks/'
 
 ETHERNET_NETWORK_TYPE_TAGGED = 'Tagged'
 ETHERNET_NETWORK_TYPE_UNTAGGED = 'Untagged'
+UPLINK_SET_PREFIX_URI = '/rest/uplink-sets/'
 
 
 def _uuid_from_uri(uri):
@@ -142,6 +143,41 @@ class Client(object):
             return versions
         except requests.RequestException as e:
             raise exceptions.OneViewConnectionError(e.message)
+
+    # -- Uplink Set ---
+    def get_uplink_set(self, uuid):
+        uplink_set_uri = _uri_from_uuid(UPLINK_SET_PREFIX_URI, uuid)
+        return self._prepare_and_do_request(uri=uplink_set_uri)
+
+    def add_network_to_uplink_set(self, uplink_set_uuid, network_uuid):
+        uplink_set_uri = _uri_from_uuid(UPLINK_SET_PREFIX_URI, uplink_set_uuid)
+        network_uri = _uri_from_uuid(ETHERNET_NETWORK_PREFIX_URI, network_uuid)
+        uplink_set_json = self.get_uplink_set(uplink_set_uuid)
+        networks = uplink_set_json.get("networkUris")
+        networks.append(network_uri)
+        uplink_set_update_json = {
+            "type": uplink_set_json.get("type"),
+            "name": uplink_set_json.get("name"),
+            "networkUris": networks,
+            "portConfigInfos": uplink_set_json.get("portConfigInfos"),
+            "networkType": uplink_set_json.get("networkType"),
+            "manualLoginRedistributionState":
+                uplink_set_json.get("manualLoginRedistributionState"),
+            "logicalInterconnectUri":
+                uplink_set_json.get("logicalInterconnectUri"),
+            "connectionMode": uplink_set_json.get("connectionMode"),
+            "fcNetworkUris": uplink_set_json.get("fcNetworkUris"),
+            "eTag": uplink_set_json.get('eTag'),
+            "ethernetNetworkType": uplink_set_json.get("ethernetNetworkType")
+        }
+        task = self._prepare_and_do_request(
+            uri=uplink_set_uri, body=uplink_set_update_json,
+            request_type=PUT_REQUEST_TYPE
+        )
+        try:
+            return self._wait_for_task_to_complete(task)
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorCreatingNetwork(e.message)
 
     # --- Ethernet Network ---
     def create_network(self, name, ethernet_network_type, vlan=''):
