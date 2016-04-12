@@ -43,6 +43,10 @@ PRESS_AND_HOLD = 'PressAndHold'
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
 SERVER_PROFILE_PREFIX_URI = '/rest/server-profiles/'
+ETHERNET_NETWORK_PREFIX_URI = '/rest/ethernet-networks/'
+
+ETHERNET_NETWORK_TYPE_TAGGED = 'Tagged'
+ETHERNET_NETWORK_TYPE_UNTAGGED = 'Untagged'
 
 
 def _uuid_from_uri(uri):
@@ -138,6 +142,55 @@ class Client(object):
             return versions
         except requests.RequestException as e:
             raise exceptions.OneViewConnectionError(e.message)
+
+    # --- Ethernet Network ---
+    def create_ethernet_network(self, name, ethernet_network_type, vlan=''):
+        if ethernet_network_type.lower() ==\
+           ETHERNET_NETWORK_TYPE_UNTAGGED.lower():
+            vlan = ''
+        network_json = {
+            "vlanId": vlan,
+            "purpose": "General",
+            "name": name,
+            "smartLink": False,
+            "privateNetwork": False,
+            "connectionTemplateUri": None,
+            "ethernetNetworkType": ethernet_network_type,
+            "type": "ethernet-networkV3"
+        }
+        task = self._prepare_and_do_request(
+            uri=ETHERNET_NETWORK_PREFIX_URI, body=network_json,
+            request_type=POST_REQUEST_TYPE
+        )
+        try:
+            task_completed = self._wait_for_task_to_complete(task)
+            return task_completed.get('associatedResource').get('resourceUri')
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorCreatingNetwork(e.message)
+
+    def list_ethernet_network(self):
+        return self._prepare_and_do_request(
+            uri=ETHERNET_NETWORK_PREFIX_URI
+        ).get('members')
+
+    def get_ethernet_network(self, uuid):
+        network_uri = _uri_from_uuid(
+            ETHERNET_NETWORK_PREFIX_URI, uuid
+        )
+        return self._prepare_and_do_request(uri=network_uri)
+
+    def get_ethernet_network_by_name(self, ethernet_network_name):
+        for network in self.list_ethernet_network():
+            if network.get('name') == ethernet_network_name:
+                return network
+
+    def delete_ethernet_network(self, uuid):
+        network_uri = _uri_from_uuid(
+            ETHERNET_NETWORK_PREFIX_URI, uuid
+        )
+        return self._prepare_and_do_request(
+            uri=network_uri, request_type=DELETE_REQUEST_TYPE
+        )
 
     # --- Power Driver ---
     def get_node_power_state(self, node_info):
