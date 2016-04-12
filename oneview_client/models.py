@@ -95,6 +95,9 @@ class ServerProfileTemplate(OneViewObject):
 
 
 class ServerProfile(OneViewObject):
+    BOOT_PRIORITY_PRIMARY = 'Primary'
+    FUNCTION_TYPE_ETHERNET = 'Ethernet'
+
     attribute_map = {
         'uri': 'uri',
         'serverProfileTemplateUri': 'server_profile_template_uri',
@@ -143,3 +146,8 @@ class ServerProfile(OneViewObject):
         for k, v in dictionary.items():
             if v == value:
                 return k
+
+    def get_connection_by_id(self, connection_id):
+        for connection in self.connections:
+            if connection.get("id") == connection_id:
+                return connection
