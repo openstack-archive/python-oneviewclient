@@ -92,3 +92,7 @@ class UnknowOneViewResponseError(OneViewException):
 
 class IloException(OneViewException):
     message = ("Unknown response from iLO")
+
+
+class OneViewErrorCreatingNetwork(OneViewException):
+    message = ("Couldn't create Network in OneView")
