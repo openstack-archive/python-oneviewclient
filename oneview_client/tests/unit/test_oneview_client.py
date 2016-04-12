@@ -1087,6 +1087,202 @@ class OneViewClientTestCase(unittest.TestCase):
 
         yield status, headers, system, memberuri
 
+    @mock.patch.object(requests, 'get')
+    def test_get_ethernet_network_nonexistent_by_uuid(self, mock_get):
+        response = mock_get.return_value
+        response.status_code = http_client.NOT_FOUND
+        mock_get.return_value = response
+        uuid = '0'
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            self.oneview_client.get_ethernet_network,
+            uuid
+        )
+
+    @mock.patch.object(client.Client, 'list_ethernet_network')
+    def test_get_ethernet_network_nonexistent_by_name(
+        self, mock_list_ethernet_network
+    ):
+        net_name = 'net-name'
+        mock_list_ethernet_network.return_value = []
+        self.assertEqual(
+            None, self.oneview_client.get_ethernet_network_by_name(net_name)
+        )
+
+    @mock.patch.object(client.Client, 'list_ethernet_network')
+    def test_get_ethernet_network_by_name(
+        self, mock_list_ethernet_network
+    ):
+        net_name = 'net-name'
+        network = {'name': net_name}
+        mock_list_ethernet_network.return_value = [network]
+        self.assertEqual(
+            network, self.oneview_client.get_ethernet_network_by_name(net_name)
+        )
+
+    @mock.patch.object(
+        client.Client, '_wait_for_task_to_complete', autospec=True
+    )
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_create_tagged_ethernet_network(
+        self, mock__prepare_do_request, mock__wait_for_task_to_complete
+    ):
+        fake_network_name = 'fake'
+        vlan = '1'
+        ethernet_network_type = client.ETHERNET_NETWORK_TYPE_TAGGED
+        self.oneview_client.create_ethernet_network(
+            fake_network_name, ethernet_network_type, vlan
+        )
+
+        network_json = {
+            "vlanId": vlan,
+            "purpose": "General",
+            "name": fake_network_name,
+            "smartLink": False,
+            "privateNetwork": False,
+            "connectionTemplateUri": None,
+            "ethernetNetworkType": ethernet_network_type,
+            "type": "ethernet-networkV3"
+        }
+        mock__prepare_do_request.assert_any_call(
+            self.oneview_client, uri='/rest/ethernet-networks/',
+            body=network_json, request_type=client.POST_REQUEST_TYPE
+        )
+
+    @mock.patch.object(requests, 'post')
+    def test_create_invalid_ethernet_network(self, mock_post):
+        response = mock_post.return_value
+        response.status_code = http_client.BAD_REQUEST
+        mock_post.return_value = response
+
+        self.assertRaises(
+            exceptions.UnknowOneViewResponseError,
+            self.oneview_client.create_ethernet_network,
+            '', ''
+        )
+
+    @mock.patch.object(requests, 'post')
+    def test_create_invalid_tagged_ethernet_network_without_vlan_tag(
+        self, mock_post
+    ):
+        response = mock_post.return_value
+        response.status_code = http_client.BAD_REQUEST
+        mock_post.return_value = response
+
+        self.assertRaises(
+            exceptions.UnknowOneViewResponseError,
+            self.oneview_client.create_ethernet_network,
+            'name', client.ETHERNET_NETWORK_TYPE_TAGGED, ''
+        )
+
+    @mock.patch.object(
+        client.Client, '_wait_for_task_to_complete', autospec=True
+    )
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_create_untagged_ethernet_network(
+        self, mock__prepare_do_request, mock__wait_for_task_to_complete
+    ):
+        fake_network_name = 'fake'
+        ethernet_network_type = client.ETHERNET_NETWORK_TYPE_UNTAGGED
+        self.oneview_client.create_ethernet_network(
+            fake_network_name, ethernet_network_type
+        )
+
+        network_json = {
+            "vlanId": '',
+            "purpose": "General",
+            "name": fake_network_name,
+            "smartLink": False,
+            "privateNetwork": False,
+            "connectionTemplateUri": None,
+            "ethernetNetworkType": ethernet_network_type,
+            "type": "ethernet-networkV3"
+        }
+        mock__prepare_do_request.assert_any_call(
+            self.oneview_client, uri='/rest/ethernet-networks/',
+            body=network_json, request_type=client.POST_REQUEST_TYPE
+        )
+
+    @mock.patch.object(
+        client.Client, '_wait_for_task_to_complete', autospec=True
+    )
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_create_untagged_ethernet_network_with_vlan_tag(
+        self, mock__prepare_do_request, mock__wait_for_task_to_complete
+    ):
+        fake_network_name = 'fake'
+        ethernet_network_type = client.ETHERNET_NETWORK_TYPE_UNTAGGED
+        self.oneview_client.create_ethernet_network(
+            fake_network_name, ethernet_network_type, vlan='1'
+        )
+
+        network_json = {
+            "vlanId": '',
+            "purpose": "General",
+            "name": fake_network_name,
+            "smartLink": False,
+            "privateNetwork": False,
+            "connectionTemplateUri": None,
+            "ethernetNetworkType": ethernet_network_type,
+            "type": "ethernet-networkV3"
+        }
+        mock__prepare_do_request.assert_any_call(
+            self.oneview_client, uri='/rest/ethernet-networks/',
+            body=network_json, request_type=client.POST_REQUEST_TYPE
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_list_ethernet_networks(self, mock__prepare_do_request):
+        self.oneview_client.list_ethernet_network()
+        mock__prepare_do_request.assert_called_once_with(
+            self.oneview_client, uri='/rest/ethernet-networks/'
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_delete_ethernet_network(self, mock__prepare_do_request):
+        network_uuid = '0'
+        fake_uri = "/rest/ethernet-networks/" + network_uuid
+        self.oneview_client.delete_ethernet_network(network_uuid)
+        mock__prepare_do_request.assert_called_once_with(
+            self.oneview_client, uri=fake_uri,
+            request_type=client.DELETE_REQUEST_TYPE
+        )
+
+    @mock.patch.object(
+        client.Client, '_wait_for_task_to_complete', autospec=True
+    )
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    @mock.patch.object(client.Client, 'get_ethernet_network', autospec=True)
+    def test_update_ethernet_network(
+        self, mock_get_ethernet_network, mock__prepare_and_do_request,
+        mock__wait_for_task_to_complete
+    ):
+        network_uuid = 'net-uuid'
+        network_uri = "/rest/ethernet-networks/" + network_uuid
+        new_name = 'new-name'
+
+        network_dict = {'uri': network_uri, 'name': 'old-name'}
+
+        mock_get_ethernet_network.return_value = network_dict
+        self.oneview_client.update_ethernet_network(network_uuid, new_name)
+
+        expected_network_dict = network_dict
+        expected_network_dict['name'] = new_name
+        mock__prepare_and_do_request.assert_called_once_with(
+            self.oneview_client, uri=network_uri, body=expected_network_dict,
+            request_type='PUT'
+        )
+
+    @mock.patch.object(client.Client, 'get_ethernet_network', autospec=True)
+    def test_update_nonexistent_ethernet_network(
+        self, mock_get_ethernet_network
+    ):
+        network_uuid = 'net-uuid'
+        new_name = 'new-name'
+
+        mock_get_ethernet_network.return_value = None
+        self.oneview_client.update_ethernet_network(network_uuid, new_name)
+
 
 class OneViewClientFunctionsTestCase(unittest.TestCase):
     def test__uuid_from_uri(self):
