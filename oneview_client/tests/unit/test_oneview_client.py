@@ -167,6 +167,24 @@ PORT_MAP = {
 }
 
 
+def _mock_server_profile_obj(
+    obj_type='type', uri='uri', name='name', uuid='uuid',
+    server_hardware_uri='server_hardware_uri',
+    server_hardware_type_uri='server_hardware_type_uri',
+    enclosure_group_uri='enclosure_group_uri', connections=[]
+):
+    server_profile_obj = ServerProfile()
+    server_profile_obj.type = obj_type
+    server_profile_obj.uri = uri
+    server_profile_obj.name = name
+    server_profile_obj.uuid = uuid
+    server_profile_obj.server_hardware_uri = server_hardware_uri
+    server_profile_obj.server_hardware_type_uri = server_hardware_type_uri
+    server_profile_obj.enclosure_group_uri = enclosure_group_uri
+    server_profile_obj.connections = connections
+    return server_profile_obj
+
+
 class TestablePort(object):
     def __init__(self, obj_address):
         self.obj_address = obj_address
@@ -1312,6 +1330,67 @@ class OneViewClientTestCase(unittest.TestCase):
             self.oneview_client, uri=uplink_set_uri,
             body=update_uplink_set_json,
             request_type=client.PUT_REQUEST_TYPE
+        )
+
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    @mock.patch.object(
+        client.Client, '_prepare_and_do_request', autospec=True
+    )
+    @mock.patch.object(
+        client.Client, '_wait_for_task_to_complete', autospec=True
+    )
+    def test_update_network_in_server_profile_connection(
+        self, mock__wait_for_task_to_complete, mock__prepare_and_do_request,
+        mock_get_server_profile_by_uuid,
+    ):
+        server_profile_uuid = 'sp_uuid'
+        network_uuid = 'n_uuid'
+        conn_id = 1
+
+        server_profile_uri = '/rest/server-profiles/' +\
+            str(server_profile_uuid)
+
+        server_profile_obj = ServerProfile()
+        server_profile_obj.connections = [{'id': conn_id}]
+        mock_get_server_profile_by_uuid.return_value = server_profile_obj
+
+        self.oneview_client.update_network_in_server_profile_connection(
+            server_profile_uuid, network_uuid, conn_id
+        )
+
+        mock__prepare_and_do_request.assert_called_once_with(
+            self.oneview_client, uri=server_profile_uri,
+            body=server_profile_obj.to_oneview_dict(),
+            request_type=client.PUT_REQUEST_TYPE
+        )
+
+    @mock.patch.object(
+        client.Client, 'get_server_profile_by_uuid', autospec=True
+    )
+    @mock.patch.object(
+        client.Client, '_prepare_and_do_request', autospec=True
+    )
+    @mock.patch.object(
+        client.Client, '_wait_for_task_to_complete', autospec=True
+    )
+    def test_update_network_in_server_profile_connection_without_connection(
+        self, mock__wait_for_task_to_complete, mock__prepare_and_do_request,
+        mock_get_server_profile_by_uuid,
+    ):
+        server_profile_uuid = 'sp_uuid'
+        network_uuid = 'n_uuid'
+        conn_id = 1
+
+        server_profile_obj = ServerProfile()
+        server_profile_obj.connections = []
+        mock_get_server_profile_by_uuid.return_value = server_profile_obj
+
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            self.oneview_client.update_network_in_server_profile_connection,
+            server_profile_uuid, network_uuid, conn_id
         )
 
 

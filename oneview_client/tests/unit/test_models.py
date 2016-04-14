@@ -181,3 +181,22 @@ class Test(unittest.TestCase):
         profile.uri = 'http://somehting.com/111-222-333-444'
         self.assertEqual(profile.to_oneview_dict(),
                          {'uri': 'http://somehting.com/111-222-333-444'})
+
+    def test_get_connection_by_id_without_connections(self):
+        conn_id = '1'
+        server_profile = ServerProfile()
+        server_profile.connections = []
+        self.assertEqual(None, server_profile.get_connection_by_id(conn_id))
+
+    def test_get_connection_by_id(self):
+        conn_id = 1
+        conn = {'id': 1}
+        server_profile = ServerProfile()
+        server_profile.connections = [conn]
+        self.assertEqual(conn, server_profile.get_connection_by_id(conn_id))
+
+    def test_get_connection_by_id_without_the_connection(self):
+        conn_id = 1
+        server_profile = ServerProfile()
+        server_profile.connections = [{'id': conn_id+1}]
+        self.assertEqual(None, server_profile.get_connection_by_id(conn_id))
