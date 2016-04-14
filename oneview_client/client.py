@@ -144,6 +144,30 @@ class Client(object):
         except requests.RequestException as e:
             raise exceptions.OneViewConnectionError(e.message)
 
+    # --- Server Profile ---
+    def update_network_in_server_profile_connection(
+        self, server_profile_uuid, network_uuid, connection_id
+    ):
+        server_profile_uri = _uri_from_uuid(
+            SERVER_PROFILE_PREFIX_URI, server_profile_uuid)
+        network_uri = _uri_from_uuid(ETHERNET_NETWORK_PREFIX_URI, network_uuid)
+        server_profile_obj = self.get_server_profile_by_uuid(
+            server_profile_uuid)
+        connection = server_profile_obj.get_connection_by_id(connection_id)
+        if connection is None:
+            msg = ("Error getting connection with id %d in Server Profile "
+                   "%s") % (connection_id, server_profile_uri)
+            raise exceptions.OneViewResourceNotFoundError(msg)
+        if connection.get("networkUri") is not None:
+            connection["networkUri"] = network_uri
+
+        task = self._prepare_and_do_request(
+            uri=server_profile_uri, body=server_profile_obj.to_oneview_dict(),
+            request_type=PUT_REQUEST_TYPE
+        )
+        task_completed = self._wait_for_task_to_complete(task)
+        return task_completed.get('associatedResource').get('resourceUri')
+
     # -- Uplink Set ---
     def get_uplink_set(self, uuid):
         uplink_set_uri = _uri_from_uuid(UPLINK_SET_PREFIX_URI, uuid)
