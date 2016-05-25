@@ -48,6 +48,7 @@ class Test(unittest.TestCase):
         self.assertEqual(eg.uuid, '1111-2222-3333-4444')
         self.assertEqual(eg.name, 'my-enclosure-group')
         self.assertEqual(eg.enclosure_type_uri, 'something1')
+        self.assertFalse(hasattr(eg, 'something_not_defined'))
 
     def test_enclosure_from_json(self):
         json = {
@@ -68,6 +69,7 @@ class Test(unittest.TestCase):
         self.assertEqual(encl.attribute_map, enclosure_attribute_map)
         self.assertEqual(encl.uri, 'http://something.com/1111-2222-3333-4444')
         self.assertEqual(encl.logical_enclosure_uri, 'something3')
+        self.assertFalse(hasattr(encl, 'something_not_defined'))
 
     def test_serverhardwaretype_from_json(self):
         json = {
@@ -85,6 +87,7 @@ class Test(unittest.TestCase):
         self.assertEqual(sht.uri, 'http://something.com/1111-2222-3333-4444')
         self.assertEqual(sht.uuid, 'aaaa-bbbb-cccc')
         self.assertEqual(sht.name, 'my-server-hardware-type')
+        self.assertFalse(hasattr(sht, 'something_not_defined'))
 
     def test_serverhardware_from_json(self):
         json = {
@@ -92,7 +95,8 @@ class Test(unittest.TestCase):
             'uuid': '1111-2222-3333-4444',
             'name': 'my-server-profile',
             'powerState': 'Powered On',
-            'serverProfileUri': 'something1',
+            # NOTE: porpusefully commented to test
+            # 'serverProfileUri': 'something1',
             'serverHardwareTypeUri': 'something2',
             'serverGroupUri': 'something3',
             'status': 'something4',
@@ -133,6 +137,8 @@ class Test(unittest.TestCase):
         self.assertEqual(sh.name, 'my-server-profile')
         self.assertEqual(sh.power_state, 'Powered On')
         self.assertEqual(sh.state_reason, 'something5')
+        self.assertIsNone(sh.server_profile_uri)
+        self.assertFalse(hasattr(sh, 'something_not_defined'))
         self.assertDictContainsSubset(
             {'mpIpAddresses': [{
                 'address': '172.18.6.18',
@@ -162,6 +168,7 @@ class Test(unittest.TestCase):
         self.assertEqual(spt.attribute_map, spt_attribute_map)
         self.assertEqual(spt.uri, 'http://something.com/1111-2222-3333-4444')
         self.assertEqual(spt.enclosure_group_uri, 'something2')
+        self.assertFalse(hasattr(spt, 'something_not_defined'))
 
     def test_serverprofile_from_json(self):
         json = {
@@ -194,6 +201,7 @@ class Test(unittest.TestCase):
         self.assertEqual(sp.attribute_map, server_profile_attribute_map)
         self.assertEqual(sp.uri, 'http://something.com')
         self.assertEqual(sp.server_profile_template_uri, 'something')
+        self.assertFalse(hasattr(sp, 'something_not_defined'))
 
     def test_serverprofile_to_oneview_dict(self):
         profile = ServerProfile()

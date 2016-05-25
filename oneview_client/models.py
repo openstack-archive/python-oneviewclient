@@ -23,28 +23,15 @@ class OneViewObject(object):
     @classmethod
     def from_json(cls, json):
         instance = cls()
-        for attr_key in instance.attribute_map:
-            attribute_value = json.get(attr_key)
-            if attribute_value:
-                setattr(instance,
-                        instance.attribute_map.get(attr_key),
-                        attribute_value)
+        instance.update_from_json(json)
         return instance
 
     def update_from_json(self, json):
         for attr_key in self.attribute_map:
             attribute_value = json.get(attr_key)
-            if attribute_value:
-                setattr(self,
-                        self.attribute_map.get(attr_key),
-                        attribute_value)
-
-    def __getattribute__(self, name):
-        try:
-            return super(OneViewObject, self).__getattribute__(name)
-        except AttributeError:
-            self.lazy_reload()
-            return super(OneViewObject, self).__getattribute__(name)
+            setattr(self,
+                    self.attribute_map.get(attr_key),
+                    attribute_value)
 
 
 class EnclosureGroup(OneViewObject):
@@ -136,9 +123,8 @@ class ServerProfile(OneViewObject):
         'sanStorage': 'san_storage',
     }
 
-    @classmethod
-    def from_json(cls, json_body):
-        """Returns an instance of ServerProfile with values parsed from json
+    def update_from_json(self, json_body):
+        """Updates an instance of ServerProfile with values parsed from json
 
         This method differs from the one in OneViewObject since it adds keys in
         the ServerProfile object for values that aren't on attribute_map. This
@@ -146,14 +132,12 @@ class ServerProfile(OneViewObject):
         to preserve state and required fields that aren't exploited by
         python-oneviewclient
         """
-        instance = cls()
         for attr_key in json_body.keys():
             attribute_value = json_body.get(attr_key)
-            attribute_map_value = cls.attribute_map.get(attr_key)
+            attribute_map_value = self.attribute_map.get(attr_key)
             if attribute_map_value is not None:
                 attr_key = attribute_map_value
-            setattr(instance, attr_key, attribute_value)
-        return instance
+            setattr(self, attr_key, attribute_value)
 
     def to_oneview_dict(self):
         server_profile_dict = {}
