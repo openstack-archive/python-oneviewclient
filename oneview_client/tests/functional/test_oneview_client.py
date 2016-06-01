@@ -47,28 +47,7 @@ class OneViewClientTestCase(unittest.TestCase):
         self.password = 'password'
 
     @mock.patch.object(requests, 'get', autospec=True)
-    def test_server_hardware_list(self, mock_get, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        response = mock_get.return_value
-        response.status_code = http_client.OK
-        response.json = mock.MagicMock(
-            return_value=fixtures.SERVER_HARDWARE_LIST_JSON
-        )
-        mock_get.return_value = response
-
-        server_hardware_list = oneview_client._server_hardware.list()
-        mock_get.assert_called_once_with(
-            url='https://1.2.3.4/rest/server-hardware/',
-            headers=mock.ANY,
-            verify=True
-        )
-        for sh in server_hardware_list:
-            self.assertIsInstance(sh, models.ServerHardware)
-
-    @mock.patch.object(requests, 'get', autospec=True)
-    def test_server_hardware_get(self, mock_get, mock__authenticate):
+    def test_get_server_hardware(self, mock_get, mock__authenticate):
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
@@ -79,7 +58,12 @@ class OneViewClientTestCase(unittest.TestCase):
         )
         mock_get.return_value = response
 
-        sh = oneview_client._server_hardware.get('aaaa-bbbb-cccc')
+        node_info = {
+            'server_hardware_uri': '/rest/server-hardware/aaaa-bbbb-cccc'
+        }
+
+        sh = oneview_client.get_server_hardware(node_info)
+
         mock_get.assert_called_once_with(
             url='https://1.2.3.4/rest/server-hardware/aaaa-bbbb-cccc',
             headers=mock.ANY,
@@ -88,7 +72,7 @@ class OneViewClientTestCase(unittest.TestCase):
         self.assertIsInstance(sh, models.ServerHardware)
 
     @mock.patch.object(requests, 'get', autospec=True)
-    def test_server_hardware_get_not_found(self, mock_get, mock__authenticate):
+    def test_get_server_hardware_not_found(self, mock_get, mock__authenticate):
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
@@ -96,59 +80,18 @@ class OneViewClientTestCase(unittest.TestCase):
         response.status_code = http_client.NOT_FOUND
         mock_get.return_value = response
 
+        node_info = {
+            'server_hardware_uri': '/rest/server-hardware/aaaa-bbbb-cccc'
+        }
+
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
-            oneview_client._server_hardware.get,
-            'aaaa-bbbb-cccc'
-        )
-
-    def test_server_hardware_create(self, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        self.assertRaises(
-            NotImplementedError,
-            oneview_client._server_hardware.create,
-            name='something',
-            description='somethingelse',
-            something=0
-        )
-
-    def test_server_hardware_delete(self, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        self.assertRaises(
-            NotImplementedError,
-            oneview_client._server_hardware.delete,
-            'aaaa-bbbb-cccc'
+            oneview_client.get_server_hardware,
+            node_info
         )
 
     @mock.patch.object(requests, 'get', autospec=True)
-    def test_server_profile_template_list(self, mock_get, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        response = mock_get.return_value
-        response.status_code = http_client.OK
-        response.json = mock.MagicMock(
-            return_value=fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON
-        )
-        mock_get.return_value = response
-
-        server_profile_template_list = (
-            oneview_client._server_profile_template.list()
-        )
-        mock_get.assert_called_once_with(
-            url='https://1.2.3.4/rest/server-profile-templates/',
-            headers=mock.ANY,
-            verify=True
-        )
-        for spt in server_profile_template_list:
-            self.assertIsInstance(spt, models.ServerProfileTemplate)
-
-    @mock.patch.object(requests, 'get', autospec=True)
-    def test_server_profile_template_get(self, mock_get, mock__authenticate):
+    def test_get_server_profile_template(self, mock_get, mock__authenticate):
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
@@ -159,7 +102,12 @@ class OneViewClientTestCase(unittest.TestCase):
         )
         mock_get.return_value = response
 
-        spt = oneview_client._server_profile_template.get('aaaa-bbbb-cccc')
+        node_info = {
+            'server_profile_template_uri':
+                '/rest/server-profile-templates/aaaa-bbbb-cccc'
+        }
+
+        spt = oneview_client.get_server_profile_template(node_info)
         mock_get.assert_called_once_with(
             url='https://1.2.3.4/rest/server-profile-templates/aaaa-bbbb-cccc',
             headers=mock.ANY,
@@ -177,74 +125,84 @@ class OneViewClientTestCase(unittest.TestCase):
         response.status_code = http_client.NOT_FOUND
         mock_get.return_value = response
 
+        node_info = {
+            'server_profile_template_uri':
+                '/rest/server-profile-templates/aaaa-bbbb-cccc'
+        }
+
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
-            oneview_client._server_profile_template.get,
-            'aaaa-bbbb-cccc'
-        )
-
-    def test_server_profile_template_create(self, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        self.assertRaises(
-            NotImplementedError,
-            oneview_client._server_profile_template.create,
-            name='something',
-            description='somethingelse',
-            something=0
-        )
-
-    def test_server_profile_template_delete(self, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        self.assertRaises(
-            NotImplementedError,
-            oneview_client._server_profile_template.delete,
-            'aaaa-bbbb-cccc'
+            oneview_client.get_server_profile_template,
+            node_info
         )
 
     @mock.patch.object(requests, 'get', autospec=True)
-    def test_server_profile_list(self, mock_get, mock__authenticate):
+    def test_get_server_profile_from_hardware(self, mock_get,
+                                              mock__authenticate):
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
-        response = mock_get.return_value
-        response.status_code = http_client.OK
-        response.json = mock.MagicMock(
-            return_value=fixtures.SERVER_PROFILE_LIST_JSON
+        hardware = mock.MagicMock()
+        hardware.status_code = http_client.OK
+        hardware.json = mock.MagicMock(
+            return_value=fixtures.SERVER_HARDWARE_LIST_JSON['members'][0]
         )
-        mock_get.return_value = response
-
-        server_profile_list = oneview_client._server_profile.list()
-        mock_get.assert_called_once_with(
-            url='https://1.2.3.4/rest/server-profiles/',
-            headers=mock.ANY,
-            verify=True
-        )
-        for sp in server_profile_list:
-            self.assertIsInstance(sp, models.ServerProfile)
-
-    @mock.patch.object(requests, 'get', autospec=True)
-    def test_server_profile_get(self, mock_get, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        response = mock_get.return_value
-        response.status_code = http_client.OK
-        response.json = mock.MagicMock(
+        profile = mock.MagicMock()
+        profile.status_code = http_client.OK
+        profile.json = mock.MagicMock(
             return_value=fixtures.SERVER_PROFILE_JSON
         )
-        mock_get.return_value = response
+        mock_get.side_effect = [hardware, profile]
 
-        sp = oneview_client._server_profile.get('aaaa-bbbb-cccc')
-        mock_get.assert_called_once_with(
-            url='https://1.2.3.4/rest/server-profiles/aaaa-bbbb-cccc',
-            headers=mock.ANY,
-            verify=True
+        node_info = {
+            'server_hardware_uri':
+                '/rest/server-hardware/30303437-3933-4753-4831-31315835524E'
+        }
+
+        sp = oneview_client.get_server_profile_from_hardware(node_info)
+        mock_get.assert_has_calls(
+            [mock.call(
+                url='https://1.2.3.4/rest/server-hardware/30303437-3933-4753-4'
+                    '831-31315835524E',
+                headers=mock.ANY,
+                verify=True,
+            ), mock.call(
+                url='https://1.2.3.4/rest/server-profiles/f2160e28-8107-45f9-b'
+                    '4b2-3119a622a3a1',
+                headers=mock.ANY,
+                verify=True,
+            )]
         )
         self.assertIsInstance(sp, models.ServerProfile)
+
+    @mock.patch.object(requests, 'get', autospec=True)
+    def test_get_server_profile_from_hardware_no_profile(self, mock_get,
+                                                         mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        hardware = mock.MagicMock()
+        hardware.status_code = http_client.OK
+        hardware.json = mock.MagicMock(
+            return_value=fixtures.SERVER_HARDWARE_JSON
+        )
+        profile = mock.MagicMock()
+        profile.status_code = http_client.OK
+        profile.json = mock.MagicMock(
+            return_value=fixtures.SERVER_PROFILE_JSON
+        )
+        mock_get.side_effect = [hardware, profile]
+
+        node_info = {
+            'server_hardware_uri':
+                '/rest/server-hardware/30303437-3933-4753-4831-31315835524E'
+        }
+
+        self.assertRaises(
+            exceptions.OneViewServerProfileAssociatedError,
+            oneview_client.get_server_profile_from_hardware,
+            node_info
+        )
 
     @mock.patch.object(requests, 'get', autospec=True)
     def test_server_profile_get_not_found(self, mock_get, mock__authenticate):
@@ -258,28 +216,6 @@ class OneViewClientTestCase(unittest.TestCase):
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
             oneview_client._server_profile.get,
-            'aaaa-bbbb-cccc'
-        )
-
-    def test_server_profile_create(self, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        self.assertRaises(
-            NotImplementedError,
-            oneview_client._server_profile.create,
-            name='something',
-            description='somethingelse',
-            something=0
-        )
-
-    def test_server_profile_delete(self, mock__authenticate):
-        oneview_client = client.Client(self.manager_url,
-                                       self.username,
-                                       self.password)
-        self.assertRaises(
-            NotImplementedError,
-            oneview_client._server_profile.delete,
             'aaaa-bbbb-cccc'
         )
 

@@ -348,7 +348,7 @@ class Client(BaseClient):
     def get_server_profile_template(self, node_info):
         uuid = node_info['server_profile_template_uri'].split("/")[-1]
 
-        return self._server_profile.get(uuid)
+        return self._server_profile_template.get(uuid)
 
     def get_server_profile_template_by_uuid(self, uuid):
         return self._server_profile_template.get(uuid)
