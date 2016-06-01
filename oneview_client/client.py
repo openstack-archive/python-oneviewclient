@@ -26,7 +26,6 @@ from oneview_client import ilo_utils
 from oneview_client import managers
 from oneview_client import states
 
-
 SUPPORTED_ONEVIEW_VERSION = 200
 
 WAIT_DO_REQUEST_IN_MILLISECONDS = 1000
@@ -42,6 +41,8 @@ PRESS_AND_HOLD = 'PressAndHold'
 
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
+
+requests.packages.urllib3.disable_warnings()
 
 
 @six.add_metaclass(abc.ABCMeta)
