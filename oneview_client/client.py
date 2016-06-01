@@ -26,7 +26,6 @@ from oneview_client import ilo_utils
 from oneview_client import managers
 from oneview_client import states
 
-
 SUPPORTED_ONEVIEW_VERSION = 200
 
 WAIT_DO_REQUEST_IN_MILLISECONDS = 1000
@@ -58,6 +57,11 @@ class BaseClient(object):
         self.allow_insecure_connections = allow_insecure_connections
         self.tls_cacert_file = tls_cacert_file
         self.max_polling_attempts = max_polling_attempts
+
+        if self.allow_insecure_connections:
+            requests.packages.urllib3.disable_warnings(
+                requests.packages.urllib3.exceptions.InsecureRequestWarning
+            )
 
         self.session_id = self.get_session()
 
