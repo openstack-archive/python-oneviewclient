@@ -154,3 +154,12 @@ class ServerProfile(OneViewObject):
         for k, v in dictionary.items():
             if v == value:
                 return k
+
+
+class EthernetNetwork(OneViewObject):
+    TAGGED = 'Tagged'
+    UNTAGGED = 'Untagged'
+    attribute_map = {
+        'uri': 'uri',
+        'name': 'name'
+    }
