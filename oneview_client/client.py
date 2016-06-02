@@ -45,6 +45,7 @@ PRESS_AND_HOLD = 'PressAndHold'
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
 SERVER_PROFILE_PREFIX_URI = '/rest/server-profiles/'
+ETHERNET_NETWORK_PREFIX_URI = '/rest/ethernet-networks/'
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -323,6 +324,7 @@ class Client(BaseClient):
 
         return current_state
 
+    # --- Server Profile
     def get_server_profile_by_uuid(self, uuid):
         if not utils._is_uuid_valid(uuid):
             message = "Invalid UUID format: %(uuid)s" % {"uuid": uuid}
@@ -340,6 +342,93 @@ class Client(BaseClient):
             raise exceptions.OneViewResourceNotFoundError(message)
 
         return models.ServerProfile.from_json(server_profile_json)
+
+    # --- Ethernet Network ---
+    def create_ethernet_network(self, name, ethernet_network_type, vlan=None):
+        if not (ethernet_network_type is models.EthernetNetwork.UNTAGGED or
+                ethernet_network_type is models.EthernetNetwork.TAGGED):
+            message = "Invalid value for ethernet_network_type: " +\
+                "%(ethernet_network_type)s." %\
+                {"ethernet_network_type": ethernet_network_type}
+            raise ValueError(message)
+        if ethernet_network_type is models.EthernetNetwork.UNTAGGED and vlan:
+            message = "When ethernet_network_type is untagged " +\
+                "you must not use vlan."
+            raise ValueError(message)
+        if ethernet_network_type is models.EthernetNetwork.TAGGED and not vlan:
+            message = "When ethernet_network_type is tagged " +\
+                "you must use vlan."
+            raise ValueError(message)
+        network_json = {
+            "vlanId": vlan if vlan is not None else '',
+            "purpose": "General",
+            "name": name,
+            "smartLink": False,
+            "privateNetwork": False,
+            "connectionTemplateUri": None,
+            "ethernetNetworkType": ethernet_network_type,
+            "type": "ethernet-networkV3"
+        }
+        task = self._prepare_and_do_request(
+            uri=ETHERNET_NETWORK_PREFIX_URI, body=network_json,
+            request_type=POST_REQUEST_TYPE
+        )
+        try:
+            task_completed = self._wait_for_task_to_complete(task)
+            return task_completed.get('associatedResource').get('resourceUri')
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorCreatingNetwork(e.message)
+
+    def list_ethernet_network(self):
+        ethernet_network_list = []
+        ethernet_networks_json = self._prepare_and_do_request(
+            uri=ETHERNET_NETWORK_PREFIX_URI
+        ).get('members')
+
+        for ethernet_network_json in ethernet_networks_json:
+            ethernet_network_list.append(
+                models.EthernetNetwork.from_json(ethernet_network_json)
+            )
+
+        return ethernet_network_list
+
+    def get_ethernet_network(self, uuid):
+        network_uri = utils.get_uri_from_uuid(
+            ETHERNET_NETWORK_PREFIX_URI, uuid
+        )
+        ethernet_network_json = self._prepare_and_do_request(uri=network_uri)
+        return models.EthernetNetwork.from_json(ethernet_network_json)
+
+    def get_ethernet_network_by_name(self, ethernet_network_name):
+        for network in self.list_ethernet_network():
+            if network.name == ethernet_network_name:
+                return network
+
+    def delete_ethernet_network(self, uuid):
+        network_uri = utils.get_uri_from_uuid(
+            ETHERNET_NETWORK_PREFIX_URI, uuid
+        )
+        return self._prepare_and_do_request(
+            uri=network_uri, request_type=DELETE_REQUEST_TYPE
+        )
+
+    def update_ethernet_network_name(self, uuid, new_name):
+        network = self.get_ethernet_network(uuid)
+        if network is None:
+            message = "Network not found with uuid: %(uuid)s" % {'uuid': uuid}
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        network.name = new_name
+
+        task = self._prepare_and_do_request(
+            uri=network.uri, body=network,
+            request_type=PUT_REQUEST_TYPE
+        )
+        try:
+            task_completed = self._wait_for_task_to_complete(task)
+            return task_completed.get('associatedResource').get('resourceUri')
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorUpdatingNetwork(e.message)
 
     # --- ManagementDriver ---
     def get_server_hardware(self, node_info):
