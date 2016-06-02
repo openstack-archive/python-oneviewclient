@@ -1096,6 +1096,31 @@ class OneViewClientTestCase(unittest.TestCase):
 
         yield status, headers, system, memberuri
 
+    @mock.patch.object(requests, 'get')
+    def test_get_server_profile_nonexistent_by_uuid(self, mock_get):
+        response = mock_get.return_value
+        response.status_code = http_client.NOT_FOUND
+        mock_get.return_value = response
+        uuid = 'abcdef12-3456-789f-edcb-aabcdef12345'
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            self.oneview_client.get_server_profile_by_uuid,
+            uuid
+        )
+
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    def test_get_server_profile_by_uuid(self, mock__prepare_do_request):
+        server_profile_uuid = 'abcdef12-3456-789f-edcb-aabcdef12345'
+        server_profile_uri = "/rest/server-profiles/" +\
+            str(server_profile_uuid)
+        mock__prepare_do_request.return_value = {
+            "uri": server_profile_uri
+        }
+        self.oneview_client.get_server_profile_by_uuid(server_profile_uuid)
+        mock__prepare_do_request.assert_called_once_with(
+            self.oneview_client, uri=server_profile_uri
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

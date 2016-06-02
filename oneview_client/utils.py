@@ -20,14 +20,14 @@ UUID_PATTERN = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-" +\
 
 
 def _is_uuid_valid(uuid):
-    if re.match(UUID_PATTERN, uuid):
+    if re.match(UUID_PATTERN, str(uuid)):
         return True
     return False
 
 
 def get_uuid_from_uri(uri):
     if uri:
-        return uri.split("/")[-1]
+        return str(uri).split("/")[-1]
 
 
 def get_uri_from_uuid(resource_prefix, uuid):

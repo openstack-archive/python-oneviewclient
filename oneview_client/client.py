@@ -24,7 +24,9 @@ import retrying
 from oneview_client import exceptions
 from oneview_client import ilo_utils
 from oneview_client import managers
+from oneview_client import models
 from oneview_client import states
+from oneview_client import utils
 
 
 SUPPORTED_ONEVIEW_VERSION = 200
@@ -42,6 +44,7 @@ PRESS_AND_HOLD = 'PressAndHold'
 
 SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
+SERVER_PROFILE_PREFIX_URI = '/rest/server-profiles/'
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -319,6 +322,24 @@ class Client(BaseClient):
             raise exceptions.OneViewErrorStateSettingPowerState(message)
 
         return current_state
+
+    def get_server_profile_by_uuid(self, uuid):
+        if not utils._is_uuid_valid(uuid):
+            message = "Invalid UUID format: %(uuid)s" % {"uuid": uuid}
+            raise exceptions.OneViewInconsistentResource(message)
+        server_profile_uri = utils.get_uri_from_uuid(
+            SERVER_PROFILE_PREFIX_URI, uuid)
+
+        server_profile_json = self._prepare_and_do_request(
+            uri=server_profile_uri
+        )
+
+        if server_profile_json.get("uri") is None:
+            message = "OneView Server Profile resource with uuid %(uuid)s" +\
+                " not found."
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        return models.ServerProfile.from_json(server_profile_json)
 
     # --- ManagementDriver ---
     def get_server_hardware(self, node_info):
