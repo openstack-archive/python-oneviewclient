@@ -46,6 +46,7 @@ SERVER_HARDWARE_PREFIX_URI = '/rest/server-hardware/'
 SERVER_PROFILE_TEMPLATE_PREFIX_URI = '/rest/server-profile-templates/'
 SERVER_PROFILE_PREFIX_URI = '/rest/server-profiles/'
 ETHERNET_NETWORK_PREFIX_URI = '/rest/ethernet-networks/'
+UPLINK_SET_PREFIX_URI = '/rest/uplink-sets/'
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -429,6 +430,32 @@ class Client(BaseClient):
             return task_completed.get('associatedResource').get('resourceUri')
         except exceptions.OneViewTaskError as e:
             raise exceptions.OneViewErrorUpdatingNetwork(e.message)
+
+    # -- Uplink Set ---
+    def get_uplink_set(self, uuid):
+        uplink_set_uri = utils.get_uri_from_uuid(UPLINK_SET_PREFIX_URI, uuid)
+        uplink_set_json = self._prepare_and_do_request(uri=uplink_set_uri)
+        return models.UplinkSet.from_json(uplink_set_json)
+
+    def add_network_to_uplink_set(self, uplink_set_uuid, network_uuid):
+        uplink_set_uri = utils.get_uri_from_uuid(
+            UPLINK_SET_PREFIX_URI, uplink_set_uuid
+        )
+        network_uri = utils.get_uri_from_uuid(
+            ETHERNET_NETWORK_PREFIX_URI, network_uuid
+        )
+        uplink_set = self.get_uplink_set(uplink_set_uuid)
+
+        uplink_set.network_uris.append(network_uri)
+
+        task = self._prepare_and_do_request(
+            uri=uplink_set_uri, body=uplink_set.to_oneview_dict(),
+            request_type=PUT_REQUEST_TYPE
+        )
+        try:
+            return self._wait_for_task_to_complete(task)
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorCreatingNetwork(e.message)
 
     # --- ManagementDriver ---
     def get_server_hardware(self, node_info):
