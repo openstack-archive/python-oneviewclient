@@ -1315,6 +1315,61 @@ class OneViewClientTestCase(unittest.TestCase):
             network_uuid, new_name
         )
 
+    @mock.patch.object(requests, 'get')
+    def test_get_uplink_set_nonexistent_by_uuid(self, mock_get):
+        response = mock_get.return_value
+        response.status_code = http_client.NOT_FOUND
+        mock_get.return_value = response
+        uuid = '0'
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            self.oneview_client.get_uplink_set,
+            uuid
+        )
+
+    @mock.patch.object(
+        client.Client, '_wait_for_task_to_complete', autospec=True
+    )
+    @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
+    @mock.patch.object(client.Client, 'get_uplink_set', autospec=True)
+    def test_add_network_to_uplink_set(
+        self, mock_get_uplink_set, mock__prepare_and_do_request,
+        mock__wait_for_task_to_complete
+    ):
+        uplink_set_uuid = 'abcdef12-3456-789f-edcb-aabcdef12345'
+        network_uuid = '9999ef12-3456-789f-edcb-aabcdef12345'
+        uplink_set_uri = '/rest/uplink-sets/' + uplink_set_uuid
+        network_uri = client.ETHERNET_NETWORK_PREFIX_URI + 'network-uuid'
+
+        fake_uplink_set_json = {
+            "type": "fake_type",
+            "name": "fake_name",
+            "networkUris": [],
+            "portConfigInfos": [],
+            "networkType": "fake_network_type",
+            "manualLoginRedistributionState": "fake_state",
+            "logicalInterconnectUri": "fake_lig_uri",
+            "connectionMode": "fake_connection",
+            "fcNetworkUris": [],
+            "eTag": "fake_eTag",
+            "ethernetNetworkType": "fake_ethernet_type",
+        }
+        fake_uplink_set = models.UplinkSet.from_json(fake_uplink_set_json)
+
+        mock_get_uplink_set.return_value = fake_uplink_set
+
+        self.oneview_client.add_network_to_uplink_set(
+            uplink_set_uuid, network_uuid
+        )
+
+        fake_uplink_set.network_uris.append(network_uri)
+
+        mock__prepare_and_do_request.assert_any_call(
+            self.oneview_client, uri=uplink_set_uri,
+            body=fake_uplink_set.to_oneview_dict(),
+            request_type=client.PUT_REQUEST_TYPE
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
