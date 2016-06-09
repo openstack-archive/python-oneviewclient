@@ -59,6 +59,11 @@ class BaseClient(object):
         self.tls_cacert_file = tls_cacert_file
         self.max_polling_attempts = max_polling_attempts
 
+        if self.allow_insecure_connections:
+            requests.packages.urllib3.disable_warnings(
+                requests.packages.urllib3.exceptions.InsecureRequestWarning
+            )
+
         self.session_id = self.get_session()
 
     def verify_credentials(self):
