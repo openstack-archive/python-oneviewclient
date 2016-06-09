@@ -156,3 +156,35 @@ class ServerProfile(OneViewObject):
         for k, v in dictionary.items():
             if v == value:
                 return k
+
+
+class EthernetNetwork(OneViewObject):
+    TAGGED = 'Tagged'
+    UNTAGGED = 'Untagged'
+    attribute_map = {
+        'vlanId': 'vlan_id',
+        'purpose': 'purpose',
+        'uri': 'uri',
+        'name': 'name',
+        'smartLink': 'smartLink',
+        'privateNetwork': 'privateNetwork',
+        'connectionTemplateUri': 'connectionTemplateUri',
+        'ethernetNetworkType': 'ethernetNetworkType',
+        'type': 'type',
+    }
+
+    def to_oneview_dict(self):
+        ethernet_network_dict = {}
+        for attr_key in self.__dict__.keys():
+            attribute_value = getattr(self, str(attr_key))
+            camel_case_key = self._oneview_key_for_attr(self.attribute_map,
+                                                        attr_key)
+            if camel_case_key is not None:
+                attr_key = camel_case_key
+            ethernet_network_dict[attr_key] = attribute_value
+        return ethernet_network_dict
+
+    def _oneview_key_for_attr(self, dictionary, value):
+        for k, v in dictionary.items():
+            if v == value:
+                return k
