@@ -319,3 +319,59 @@ class TestEthernetNetworkManager(unittest.TestCase):
             self.oneview_client, uri=fake_uri,
             request_type='DELETE'
         )
+
+
+class TestUplinkSetManager(unittest.TestCase):
+
+    @mock.patch.object(client.BaseClient, '_authenticate', autospec=True)
+    def setUp(self, mock__authenticate):
+        self.oneview_client = client.Client(
+            manager_url='https://something', username='user', password='pass')
+        self.uplink_set_manager = managers.UplinkSetManager(
+            self.oneview_client
+        )
+
+    @mock.patch.object(
+        client.BaseClient, '_wait_for_task_to_complete', autospec=True
+    )
+    @mock.patch.object(
+        client.BaseClient, '_prepare_and_do_request', autospec=True
+    )
+    @mock.patch.object(managers.UplinkSetManager, 'get', autospec=True)
+    def test_add_network(
+        self, mock_get, mock__prepare_do_request,
+        mock__wait_for_task_to_complete
+    ):
+        uplink_set_uuid = 'abcdef12-3456-789f-edcb-aabcdef12345'
+        network_uuid = '9999ef12-3456-789f-edcb-aabcdef12345'
+        uplink_set_uri = '/rest/uplink-sets/' + uplink_set_uuid
+        network_uri = '/rest/uplink-sets/' + network_uuid
+
+        uplink_set_json = {
+            "uri": uplink_set_uri,
+            "type": "fake_type",
+            "name": "fake_name",
+            "networkUris": [],
+            "portConfigInfos": [],
+            "networkType": "fake_network_type",
+            "manualLoginRedistributionState": "fake_state",
+            "logicalInterconnectUri": "fake_lig_uri",
+            "connectionMode": "fake_connection",
+            "fcNetworkUris": [],
+            # "eTag": "fake_eTag",
+            "ethernetNetworkType": "fake_ethernet_type",
+        }
+        uplink_set = models.UplinkSet.from_json(uplink_set_json)
+        mock_get.return_value = uplink_set
+
+        self.uplink_set_manager.add_network(
+            uplink_set_uuid, network_uuid
+        )
+
+        uplink_set.network_uris.append(network_uri)
+
+        mock__prepare_do_request.assert_called_once_with(
+            self.uplink_set_manager.oneview_client, uri=uplink_set_uri,
+            body=uplink_set.to_oneview_dict(),
+            request_type='PUT'
+        )
