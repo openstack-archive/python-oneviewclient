@@ -188,3 +188,38 @@ class EthernetNetwork(OneViewObject):
         for k, v in dictionary.items():
             if v == value:
                 return k
+
+
+class UplinkSet(OneViewObject):
+    attribute_map = {
+        'uri': 'uri',
+        'name': 'name',
+        'networkUris': 'network_uris',
+        'type': 'type',
+        'portConfigInfos': 'port_config_infos',
+        'networkType': 'network_type',
+        'manualLoginRedistributionState': 'manual_login_redistribution_state',
+        'logicalInterconnectUri': 'logical_interconnect_uri',
+        'connectionMode': 'connection_mode',
+        'fcNetworkUris': 'fc_network_uris',
+        'ethernetNetworkType': 'ethernet_network_type'
+    }
+
+    def add_network(self, network_uri):
+        self.network_uris.append(network_uri)
+
+    def to_oneview_dict(self):
+        uplink_set_dict = {}
+        for attr_key in self.__dict__.keys():
+            attribute_value = getattr(self, str(attr_key))
+            camel_case_key = self._oneview_key_for_attr(self.attribute_map,
+                                                        attr_key)
+            if camel_case_key is not None:
+                attr_key = camel_case_key
+            uplink_set_dict[attr_key] = attribute_value
+        return uplink_set_dict
+
+    def _oneview_key_for_attr(self, dictionary, value):
+        for k, v in dictionary.items():
+            if v == value:
+                return k
