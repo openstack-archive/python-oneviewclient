@@ -238,3 +238,86 @@ class ServerProfileTemplateManager(OneViewManager):
     def delete(self, uuid):
         raise NotImplementedError("ServerProfileTemplate isn't supposed to be "
                                   "deleted.")
+
+
+class EthernetNetworkManager(OneViewManager):
+    model = models.EthernetNetwork
+    uri_prefix = '/rest/ethernet-networks/'
+
+    def _is_a_valid_ethernet_network_type(self, ethernet_network_type):
+        return ethernet_network_type == models.EthernetNetwork.TAGGED or\
+            ethernet_network_type == models.EthernetNetwork.UNTAGGED
+
+    def create(self, **kwargs):
+        name = kwargs.get('name')
+        ethernet_network_type = kwargs.get('ethernet_network_type')
+        vlan = kwargs.get('vlan')
+        if not self._is_a_valid_ethernet_network_type(ethernet_network_type):
+            message = "Invalid value for ethernet_network_type: " +\
+                "%(ethernet_network_type)s." %\
+                {"ethernet_network_type": ethernet_network_type}
+            raise ValueError(message)
+        if ethernet_network_type == models.EthernetNetwork.UNTAGGED and vlan:
+            message = "When ethernet_network_type is untagged " +\
+                "you must not use vlan."
+            raise ValueError(message)
+        if ethernet_network_type is models.EthernetNetwork.TAGGED and not vlan:
+            message = "When ethernet_network_type is tagged " +\
+                "you must use vlan."
+            raise ValueError(message)
+        ethernet_network_json = {
+            "vlanId": vlan if vlan is not None else '',
+            "purpose": "General",
+            "name": name,
+            "smartLink": False,
+            "privateNetwork": False,
+            "connectionTemplateUri": None,
+            "ethernetNetworkType": ethernet_network_type,
+            "type": "ethernet-networkV3"
+        }
+        task = self.oneview_client._prepare_and_do_request(
+            uri=self.uri_prefix, body=ethernet_network_json,
+            request_type='POST'
+        )
+        try:
+            task_completed = self.oneview_client._wait_for_task_to_complete(
+                task
+            )
+            return task_completed.get('associatedResource').get('resourceUri')
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorCreatingNetwork(e.message)
+
+    def update_name(self, uuid, new_name):
+        network = self.get(uuid)
+        if network is None:
+            message = "Network not found with uuid: %(uuid)s" % {'uuid': uuid}
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        network.name = new_name
+
+        task = self.oneview_client._prepare_and_do_request(
+            uri=network.uri, body=network.to_oneview_dict(),
+            request_type='PUT'
+        )
+        try:
+            task_completed = self.oneview_client._wait_for_task_to_complete(
+                task
+            )
+            return task_completed.get('associatedResource').get('resourceUri')
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorUpdatingNetwork(e.message)
+
+    def delete(self, uuid):
+        if not uuid:
+            raise ValueError('Missing Ethernet Network uuid.')
+
+        resource_uri = self.uri_prefix + str(uuid)
+        task = self.oneview_client._prepare_and_do_request(
+            uri=resource_uri,
+            request_type='DELETE'
+        )
+
+        try:
+            self.oneview_client._wait_for_task_to_complete(task)
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewServerProfileDeletionError(e.message)
