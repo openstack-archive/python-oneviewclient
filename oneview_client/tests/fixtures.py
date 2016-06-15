@@ -3563,7 +3563,21 @@ SERVER_PROFILE_TEMPLATE_LIST_JSON = {
                 "forceInstallFirmware": False,
                 "firmwareBaselineUri": None
             },
-            "connections": [],
+            "connections": [
+                {
+                    "id": 1,
+                    "name": "encl1-blade1",
+                    "functionType": "Ethernet",
+                    "networkUri": "/rest/ethernet-networks/b4a0663d-9160-4566-"
+                                  "96b3-1b00745c8115",
+                    "portId": "Flb 1:1-a",
+                    "requestedVFs": "Auto",
+                    "requestedMbps": "2500",
+                    "boot": {
+                        "priority": "NotBootable"
+                    }
+                }
+            ],
             "bootMode": None,
             "boot": {
                 "manageBoot": True,
@@ -3627,6 +3641,19 @@ SERVER_PROFILE_TEMPLATE_LIST_JSON = {
                     "requestedMbps": "2500",
                     "boot": {
                         "priority": "Primary"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "internal-net-dcs-connection",
+                    "functionType": "Ethernet",
+                    "networkUri": "/rest/ethernet-networks/b4a0663d-9160-4566-"
+                                  "96b3-1b00745c8115",
+                    "portId": "Flb 1:1-a",
+                    "requestedVFs": "Auto",
+                    "requestedMbps": "2500",
+                    "boot": {
+                        "priority": "NotBootable"
                     }
                 }
             ],
@@ -3692,9 +3719,23 @@ SERVER_PROFILE_TEMPLATE_LIST_JSON = {
                     "requestedVFs": "Auto",
                     "requestedMbps": "2500",
                     "boot": {
+                        "priority": "NotBootable"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "internal-net-dcs-connection",
+                    "functionType": "Ethernet",
+                    "networkUri": "/rest/ethernet-networks/b4a0663d-9160-4566-"
+                                  "96b3-1b00745c8115",
+                    "portId": "Flb 1:1-a",
+                    "requestedVFs": "Auto",
+                    "requestedMbps": "2500",
+                    "boot": {
                         "priority": "Primary"
                     }
                 }
+
             ],
             "bootMode": None,
             "boot": {
@@ -3758,7 +3799,20 @@ SERVER_PROFILE_TEMPLATE_LIST_JSON = {
                     "requestedVFs": "Auto",
                     "requestedMbps": "2500",
                     "boot": {
-                        "priority": "Primary"
+                        "priority": "NotBootable"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "Devstack-blade7",
+                    "functionType": "Ethernet",
+                    "networkUri": "/rest/ethernet-networks/f676ffc9-d2c3-499e-"
+                                  "b616-265708f34216",
+                    "portId": "Flb 1:1-a",
+                    "requestedVFs": "Auto",
+                    "requestedMbps": "2500",
+                    "boot": {
+                        "priority": "NotBootable"
                     }
                 }
             ],

@@ -821,7 +821,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, 'get_server_profile_template_by_uuid',
                        autospec=True)
-    def test_validate_spt_boot_connections_no_primary_boot_connection(
+    def test_validate_spt_boot_connections(
         self, mock_server_template
     ):
         server_hardware_mock = models.ServerHardware()
@@ -832,6 +832,7 @@ class OneViewClientTestCase(unittest.TestCase):
         setattr(profile_template_mock, "server_hardware_type_uri", "/sht_uri")
         setattr(profile_template_mock, "enclosure_group_uri", "/eg_uri")
 
+        # Negative scenario
         profile_template_mock_connections = [
             {'boot': {'priority': u'NotBootable'},
              'mac': u'56:88:7B:C0:00:0B'}
@@ -853,6 +854,55 @@ class OneViewClientTestCase(unittest.TestCase):
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
             self.oneview_client.validate_spt_boot_connections,
+            server_profile_template_uuid
+        )
+
+        # Positive scenario
+        profile_template_mock_connections = [
+            {'boot': {'priority': u'Primary'},
+             'mac': u'56:88:7B:C0:00:0B'}
+        ]
+        setattr(profile_template_mock,
+                "connections",
+                profile_template_mock_connections)
+
+        mock_server_template.return_value = profile_template_mock
+
+        self.oneview_client.validate_spt_boot_connections(
+            server_profile_template_uuid
+        )
+
+        # More than one connection, Primary first
+        profile_template_mock_connections = [
+            {'boot': {'priority': u'Primary'},
+             'mac': u'56:88:7B:C0:00:0B'},
+            {'boot': {'priority': u'NotBootable'},
+             'mac': u'56:88:7B:C0:00:0C'}
+        ]
+        setattr(profile_template_mock,
+                "connections",
+                profile_template_mock_connections)
+
+        mock_server_template.return_value = profile_template_mock
+
+        self.oneview_client.validate_spt_boot_connections(
+            server_profile_template_uuid
+        )
+
+        # More than one connection, Primary NOT first
+        profile_template_mock_connections = [
+            {'boot': {'priority': u'NotBootable'},
+             'mac': u'56:88:7B:C0:00:0B'},
+            {'boot': {'priority': u'Primary'},
+             'mac': u'56:88:7B:C0:00:0C'}
+        ]
+        setattr(profile_template_mock,
+                "connections",
+                profile_template_mock_connections)
+
+        mock_server_template.return_value = profile_template_mock
+
+        self.oneview_client.validate_spt_boot_connections(
             server_profile_template_uuid
         )
 

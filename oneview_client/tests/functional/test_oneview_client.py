@@ -24,6 +24,7 @@ from oneview_client import client
 from oneview_client import exceptions
 from oneview_client import models
 from oneview_client.tests import fixtures
+from oneview_client import utils
 
 
 @mock.patch.object(client.Client, '_authenticate', autospec=True)
@@ -240,6 +241,51 @@ class OneViewClientTestCase(unittest.TestCase):
             headers=mock.ANY,
             verify=True
         )
+
+    @mock.patch.object(requests, 'get', autospec=True)
+    def test_validate_spt_boot_connections(self, mock_get, mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        passes = [
+            # Single connection, Primary
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[0],
+            # Two connections, Primary first
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[2],
+            # Two connections, Primary second
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[3],
+        ]
+        fails = [
+            # Single connection, no primary
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[1],
+            # Two connections, any primary
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[4],
+            # No connections
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[9],
+        ]
+        for spt in passes:
+            response = mock_get.return_value
+            response.status_code = http_client.OK
+            response.json = mock.MagicMock(
+                return_value=spt
+            )
+            mock_get.return_value = response
+            oneview_client.validate_spt_boot_connections(
+                utils.get_uuid_from_uri(spt.get('uri'))
+            )
+        for spt in fails:
+            response = mock_get.return_value
+            response.status_code = http_client.OK
+            response.json = mock.MagicMock(
+                return_value=spt
+            )
+            mock_get.return_value = response
+            self.assertRaises(
+                exceptions.OneViewInconsistentResource,
+                oneview_client.validate_spt_boot_connections,
+                utils.get_uuid_from_uri(spt.get('uri'))
+            )
 
 
 @mock.patch.object(client.ClientV2, '_authenticate', autospec=True)

@@ -642,12 +642,13 @@ class Client(BaseClient):
 
         for connection in server_profile_template.connections:
             boot = connection.get('boot')
-            if boot is not None and boot.get('priority').lower() != 'primary':
-                message = (
-                    "No primary boot connection configured for server profile"
-                    " template %s." % server_profile_template.uri
-                )
-                raise exceptions.OneViewInconsistentResource(message)
+            if boot and boot.get('priority').lower() == 'primary':
+                return
+        message = (
+            "No primary boot connection configured for server profile"
+            " template %s." % server_profile_template.uri
+        )
+        raise exceptions.OneViewInconsistentResource(message)
 
 
 def _check_request_status(response):
