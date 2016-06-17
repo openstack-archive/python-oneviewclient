@@ -88,3 +88,7 @@ class IloException(OneViewException):
 
 class OneViewServerProfileDeletionError(OneViewException):
     message = ("There was an error deleting this Server Profile.")
+
+
+class OneViewErrorUpdatingServerProfile(OneViewException):
+    message = ("There was an error updating this Server Profile.")
