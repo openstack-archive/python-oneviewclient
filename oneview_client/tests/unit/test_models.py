@@ -206,8 +206,10 @@ class Test(unittest.TestCase):
     def test_serverprofile_to_oneview_dict(self):
         profile = models.ServerProfile()
         profile.uri = 'http://somehting.com/111-222-333-444'
-        self.assertEqual(profile.to_oneview_dict(),
-                         {'uri': 'http://somehting.com/111-222-333-444'})
+        self.assertEqual(
+            profile.to_oneview_dict().get('uri'),
+            'http://somehting.com/111-222-333-444'
+        )
 
     def test_get_mac_from_server_hardware(self):
         server_hardware = models.ServerHardware()

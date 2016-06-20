@@ -17,3 +17,9 @@
 def get_uuid_from_uri(uri):
     if uri:
         return uri.split("/")[-1]
+
+
+def get_dictionary_key_with_value(dictionary, value):
+    for k, v in dictionary.items():
+        if v == value:
+            return k
