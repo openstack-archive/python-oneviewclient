@@ -15,6 +15,7 @@
 #    under the License.
 
 from oneview_client import exceptions
+from oneview_client import utils
 
 
 class OneViewObject(object):
@@ -32,6 +33,18 @@ class OneViewObject(object):
             setattr(self,
                     self.attribute_map.get(attr_key),
                     attribute_value)
+
+    def to_oneview_dict(self):
+        obj_dict = {}
+        for attr_key in self.__dict__.keys():
+            attribute_value = getattr(self, str(attr_key))
+            oneview_key = utils.get_dictionary_key_with_value(
+                self.attribute_map, attr_key
+            )
+            if oneview_key is not None:
+                attr_key = oneview_key
+            obj_dict[attr_key] = attribute_value
+        return obj_dict
 
 
 class EnclosureGroup(OneViewObject):
@@ -140,19 +153,3 @@ class ServerProfile(OneViewObject):
             if attribute_map_value is not None:
                 attr_key = attribute_map_value
             setattr(self, attr_key, attribute_value)
-
-    def to_oneview_dict(self):
-        server_profile_dict = {}
-        for attr_key in self.__dict__.keys():
-            attribute_value = getattr(self, str(attr_key))
-            camel_case_key = self._oneview_key_for_attr(self.attribute_map,
-                                                        attr_key)
-            if camel_case_key is not None:
-                attr_key = camel_case_key
-            server_profile_dict[attr_key] = attribute_value
-        return server_profile_dict
-
-    def _oneview_key_for_attr(self, dictionary, value):
-        for k, v in dictionary.items():
-            if v == value:
-                return k
