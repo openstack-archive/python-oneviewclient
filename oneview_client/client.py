@@ -258,6 +258,8 @@ class ClientV2(BaseClient):
         self.server_profile_template = managers.ServerProfileTemplateManager(
             self
         )
+        self.ethernet_network = managers.EthernetNetworkManager(self)
+        self.uplinkset = managers.UplinkSetManager(self)
 
 
 class Client(BaseClient):
