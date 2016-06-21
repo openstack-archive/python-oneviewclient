@@ -174,3 +174,25 @@ class ServerProfile(OneViewObject):
             if attribute_map_value is not None:
                 attr_key = attribute_map_value
             setattr(self, attr_key, attribute_value)
+
+
+class EthernetNetwork(OneViewObject):
+    TAGGED = 'Tagged'
+    UNTAGGED = 'Untagged'
+    attribute_map = {
+        'vlanId': 'vlan_id',
+        'purpose': 'purpose',
+        'uri': 'uri',
+        'name': 'name',
+        'smartLink': 'smart_link',
+        'privateNetwork': 'private_network',
+        'connectionTemplateUri': 'connection_template_uri',
+        'ethernetNetworkType': 'ethernet_network_type',
+        'type': 'type',
+    }
+    default_values = {
+        'purpose': 'General',
+        'smartLink': False,
+        'privateNetwork': False,
+        'type': 'ethernet-networkV3',
+    }
