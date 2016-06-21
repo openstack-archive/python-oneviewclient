@@ -196,3 +196,22 @@ class EthernetNetwork(OneViewObject):
         'privateNetwork': False,
         'type': 'ethernet-networkV3',
     }
+
+
+class UplinkSet(OneViewObject):
+    attribute_map = {
+        'uri': 'uri',
+        'name': 'name',
+        'networkUris': 'network_uris',
+        'type': 'type',
+        'portConfigInfos': 'port_config_infos',
+        'networkType': 'network_type',
+        'manualLoginRedistributionState': 'manual_login_redistribution_state',
+        'logicalInterconnectUri': 'logical_interconnect_uri',
+        'connectionMode': 'connection_mode',
+        'fcNetworkUris': 'fc_network_uris',
+        'ethernetNetworkType': 'ethernet_network_type'
+    }
+
+    def add_network(self, network_uri):
+        self.network_uris.append(network_uri)
