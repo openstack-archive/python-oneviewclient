@@ -13,7 +13,23 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import re
+
+UUID_PATTERN = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-" +\
+    "[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+
+def _is_uuid_valid(uuid):
+    if re.match(UUID_PATTERN, uuid):
+        return True
+    return False
+
 
 def get_uuid_from_uri(uri):
     if uri:
         return uri.split("/")[-1]
+
+
+def get_uri_from_uuid(resource_prefix, uuid):
+    if uuid and _is_uuid_valid(uuid):
+        return str(resource_prefix) + str(uuid)
