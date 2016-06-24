@@ -47,3 +47,25 @@ class UtilsTestCase(unittest.TestCase):
         prefix = '/rest/resource/'
         uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?'
         self.assertEqual(None, utils.get_uri_from_uuid(prefix, uuid))
+
+    def test_get_dictionary_key_with_value_with_empty_dictionary(self):
+        value = 'value'
+        dictionary = {}
+        self.assertEqual(
+            None, utils.get_dictionary_key_with_value(dictionary, value)
+        )
+
+    def test_get_dictionary_key_with_nonexistent_value(self):
+        value = 'no_value'
+        dictionary = {'key': 'value'}
+        self.assertEqual(
+            None, utils.get_dictionary_key_with_value(dictionary, value)
+        )
+
+    def test_get_dictionary_key_with_value(self):
+        key = 'key'
+        value = 'value'
+        dictionary = {key: value}
+        self.assertEqual(
+            key, utils.get_dictionary_key_with_value(dictionary, value)
+        )
