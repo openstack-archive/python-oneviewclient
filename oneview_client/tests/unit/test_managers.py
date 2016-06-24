@@ -321,3 +321,52 @@ class TestEthernetNetworkManager(unittest.TestCase):
             self.oneview_client, uri=fake_uri,
             request_type='DELETE'
         )
+
+
+class TestUplinkSetManager(unittest.TestCase):
+
+    @mock.patch.object(client.BaseClient, '_authenticate', autospec=True)
+    def setUp(self, mock__authenticate):
+        self.oneview_client = client.ClientV2(
+            manager_url='https://something', username='user', password='pass')
+        self.uplink_set_manager = self.oneview_client.uplink_set
+
+    @mock.patch.object(managers.UplinkSetManager, 'get', autospec=True)
+    def test_add_nonexistent_network(self, mock_get):
+        network_uuid = 'net-uuid'
+        uplink_set_uuid = 'us-uuid'
+
+        mock_get.return_value = None
+
+        self.assertRaises(
+            exceptions.OneViewResourceNotFoundError,
+            self.uplink_set_manager.add_network, uplink_set_uuid, network_uuid
+        )
+
+    @mock.patch.object(
+        client.BaseClient, '_wait_for_task_to_complete', autospec=True
+    )
+    @mock.patch.object(
+        client.BaseClient, '_prepare_and_do_request', autospec=True
+    )
+    @mock.patch.object(managers.UplinkSetManager, 'get', autospec=True)
+    def test_add_network(
+        self, mock_get, mock__prepare_and_do_request,
+        mock__wait_for_task_to_complete
+    ):
+        network_uuid = 'net-uuid'
+        network_uri = '/rest/ethernet-networks/' + network_uuid
+        uplink_set_uuid = 'us-uuid'
+        uplink_set = models.UplinkSet()
+        uplink_set.uri = '/rest/uplink-sets/' + uplink_set_uuid
+
+        mock_get.return_value = uplink_set
+
+        self.uplink_set_manager.add_network(uplink_set_uuid, network_uuid)
+
+        uplink_set.add_network(network_uri)
+
+        mock__prepare_and_do_request.assert_called_once_with(
+            self.oneview_client, uri=uplink_set.uri,
+            body=uplink_set.to_oneview_dict(), request_type='PUT'
+        )
