@@ -4271,7 +4271,13 @@ SERVER_PROFILE_JSON = {
         "overriddenSettings": [],
         "manageBios": False
     },
-    "eTag": "1450007350645/7"
+    "eTag": "1450007350645/7",
+    "sanStorage": {
+        "manageSanStorage": False,
+        "volumeAttachments": []
+    },
+    "serverProfileTemplateUri": None,
+    "templateCompliance": "Unknown"
 }
 
 SERVER_PROFILE_LIST_JSON = {

@@ -33,3 +33,9 @@ def get_uuid_from_uri(uri):
 def get_uri_from_uuid(resource_prefix, uuid):
     if uuid and _is_uuid_valid(uuid):
         return str(resource_prefix) + str(uuid)
+
+
+def get_dictionary_key_with_value(dictionary, value):
+    for k, v in dictionary.items():
+        if v == value:
+            return k
