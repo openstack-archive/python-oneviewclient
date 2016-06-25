@@ -116,6 +116,38 @@ class ServerHardware(OneViewObject):
         'mpHostInfo': 'mp_host_info',
     }
 
+    def _get_connection_port_info(self, mac_address):
+        device_slots = self.port_map.get('deviceSlots')
+        for device_slot in device_slots:
+            physical_ports = device_slot.get('physicalPorts')
+            for physical_port in physical_ports:
+                virtual_ports = physical_port.get('virtualPorts')
+                for virtual_port in virtual_ports:
+                    mac = virtual_port.get('mac')
+                    if mac == mac_address:
+                        info_dict = {
+                            'virtual_port_function': virtual_port.get(
+                                'portFunction'
+                            ),
+                            'physical_port_number': physical_port.get(
+                                'portNumber'
+                            ),
+                            'device_slot_port_number': device_slot.get(
+                                'slotNumber'
+                            ),
+                            'device_slot_location': device_slot.get(
+                                'location'
+                            ),
+                        }
+                        return info_dict
+
+    def generate_connection_port_for_mac(self, mac_address):
+        port_info = self._get_connection_port_info(mac_address)
+        return str(port_info.get('device_slot_location')) + " " +\
+            str(port_info.get('device_slot_port_number')) + ":" +\
+            str(port_info.get('physical_port_number')) + "-" +\
+            str(port_info.get('virtual_port_function'))
+
     def get_mac(self, nic_index=0):
         if self.port_map:
             device = self.port_map.get('deviceSlots')[0]
@@ -158,6 +190,45 @@ class ServerProfile(OneViewObject):
         'boot': 'boot',
         'sanStorage': 'san_storage',
     }
+    default_values = {
+        'connections': [],
+    }
+
+    def next_connection_id(self):
+        maximum_id = 0
+        for connection in self.connections:
+            conn_id = int(connection.get('id'))
+            if conn_id > maximum_id:
+                maximum_id = conn_id
+        return maximum_id + 1
+
+    def get_connection(self, id):
+        for connection in self.connections:
+            if int(connection.get('id')) == id:
+                return connection
+
+    def add_connection(self, network_uuid, boot_priority, port_id):
+        network_uri = "/rest/ethernet-networks/" + network_uuid
+        connection = {
+            "id": self.next_connection_id(),
+            "functionType": "Ethernet",
+            "portId": port_id,
+            "networkUri": network_uri,
+            "boot": {
+                "priority": boot_priority
+            }
+        }
+        self.connections.append(connection)
+        return connection
+
+    def remove_connection(self, connection_id):
+        index_to_remove = -1
+        for conn_index in range(len(self.connections)):
+            conn_id = int(self.connections[conn_index].get('id'))
+            if conn_id == int(connection_id):
+                index_to_remove = conn_index
+        if index_to_remove > -1:
+            self.connections.pop(index_to_remove)
 
     def update_from_json(self, json_body):
         """Updates an instance of ServerProfile with values parsed from json

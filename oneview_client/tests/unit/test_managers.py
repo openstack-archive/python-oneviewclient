@@ -103,6 +103,9 @@ class TestServerProfileManager(TestManagerBase):
             resource_json
         )
 
+    def test_add_connection(self):
+        pass
+
 
 class TestEthernetNetworkManager(unittest.TestCase):
 

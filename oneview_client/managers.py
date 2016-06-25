@@ -227,6 +227,94 @@ class ServerProfileManager(OneViewManager):
         except exceptions.OneViewTaskError as e:
             raise exceptions.OneViewServerProfileDeletionError(e.message)
 
+    def add_connection(self, uuid, network_uuid, boot_priority, port_id):
+        server_profile = self.get(uuid)
+        if server_profile is None:
+            message = "Server Profile not found with uuid: %(uuid)s" %\
+                {'uuid': uuid}
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        connection = server_profile.add_connection(
+            network_uuid, boot_priority, port_id
+        )
+
+        task = self.oneview_client._prepare_and_do_request(
+            uri=server_profile.uri, body=server_profile.to_oneview_dict(),
+            request_type='PUT'
+        )
+        try:
+            self.oneview_client._wait_for_task_to_complete(task)
+            return connection
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorUpdatingServerProfile(e.message)
+
+    def update_connection(
+        self, uuid, conn_id, boot_priority=None, port_id=None
+    ):
+        server_profile = self.get(uuid)
+        if server_profile is None:
+            message = "Server Profile not found with uuid: %(uuid)s" %\
+                {'uuid': uuid}
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        connection = server_profile.get_connection(conn_id)
+        if boot_priority:
+            connection.get('boot')['priority'] = boot_priority
+        if port_id:
+            connection['portId'] = port_id
+
+        task = self.oneview_client._prepare_and_do_request(
+            uri=server_profile.uri, body=server_profile.to_oneview_dict(),
+            request_type='PUT'
+        )
+        try:
+            self.oneview_client._wait_for_task_to_complete(task)
+            return connection
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorUpdatingServerProfile(e.message)
+
+    def remove_connection(self, uuid, connection_id):
+        server_profile = self.get(uuid)
+        if server_profile is None:
+            message = "Server Profile not found with uuid: %(uuid)s" %\
+                {'uuid': uuid}
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        server_profile.remove_connection(connection_id)
+
+        task = self.oneview_client._prepare_and_do_request(
+            uri=server_profile.uri, body=server_profile.to_oneview_dict(),
+            request_type='PUT'
+        )
+        try:
+            task_completed = self.oneview_client._wait_for_task_to_complete(
+                task
+            )
+            return task_completed.get('associatedResource').get('resourceUri')
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorUpdatingServerProfile(e.message)
+
+    def update_name(self, uuid, new_name):
+        server_profile = self.get(uuid)
+        if server_profile is None:
+            message = "Server Profile not found with uuid: %(uuid)s" %\
+                {'uuid': uuid}
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        server_profile.name = new_name
+
+        task = self.oneview_client._prepare_and_do_request(
+            uri=server_profile.uri, body=server_profile.to_oneview_dict(),
+            request_type='PUT'
+        )
+        try:
+            task_completed = self.oneview_client._wait_for_task_to_complete(
+                task
+            )
+            return task_completed.get('associatedResource').get('resourceUri')
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorUpdatingServerProfile(e.message)
+
 
 class ServerProfileTemplateManager(OneViewManager):
     model = models.ServerProfileTemplate
