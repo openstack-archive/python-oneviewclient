@@ -15,6 +15,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+from __future__ import print_function
 
 import abc
 import six
@@ -24,6 +25,11 @@ from oneview_client import models
 
 ONEVIEW_POWER_ON = 'On'
 ONEVIEW_POWER_OFF = 'Off'
+
+GET_REQUEST_TYPE = 'GET'
+PUT_REQUEST_TYPE = 'PUT'
+POST_REQUEST_TYPE = 'POST'
+DELETE_REQUEST_TYPE = 'DELETE'
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -238,3 +244,73 @@ class ServerProfileTemplateManager(OneViewManager):
     def delete(self, uuid):
         raise NotImplementedError("ServerProfileTemplate isn't supposed to be "
                                   "deleted.")
+
+
+class CertificateManager(object):
+
+    rabbitmq_uri_create_certificate = '/rest/certificates/client/rabbitmq'
+    rabbitmq_request_body_certificate = {"type": "RabbitMqClientCertV2",
+                                         "commonName": ""}
+    rabbitmq_uri_client_certificate = \
+        '/rest/certificates/client/rabbitmq/keypair/'
+    root_ca_certificate_uri = '/rest/certificates/ca'
+
+    client_certificate_file_name = 'client.pem'
+    client_key_file_name = 'key.pem'
+    ca_root_certificate_file_name = 'caroot.pem'
+
+    def __init__(self, oneview_client):
+        self.oneview_client = oneview_client
+
+    def create_certificate(self, name):
+        self.rabbitmq_request_body_certificate['commonName'] = name
+        self.oneview_client._prepare_and_do_request(
+            self.rabbitmq_uri_create_certificate,
+            body=self.rabbitmq_request_body_certificate,
+            request_type=POST_REQUEST_TYPE
+        )
+
+    def _get_client_certificate_and_key(self, name):
+        self.rabbitmq_uri_client_certificate += name
+        client_json = self.oneview_client._prepare_and_do_request(
+            self.rabbitmq_uri_client_certificate
+        )
+        client_certificate = client_json['base64SSLCertData']
+        client_key = client_json['base64SSLKeyData']
+
+        return (client_certificate, client_key)
+
+    def _get_root_ca_certificate(self):
+        ca_certificate = self.oneview_client._prepare_and_do_request(
+            self.root_ca_certificate_uri
+        )
+
+        return ca_certificate
+
+    def _create_file(self, name, certificate=''):
+        with open(name, "w") as file_certificate:
+            print(certificate, file=file_certificate)
+
+    def generate_certificate_files(self, name):
+        CERTIFICATE = 0
+        KEY = 1
+
+        client_key_and_certificate = self._get_client_certificate_and_key(name)
+
+        certificate = client_key_and_certificate[CERTIFICATE]
+        self._create_file(
+            self.client_certificate_file_name,
+            certificate
+        )
+
+        key = client_key_and_certificate[KEY]
+        self._create_file(
+            self.client_key_file_name,
+            key
+        )
+
+        ca_certificate = self._get_root_ca_certificate()
+        self._create_file(
+            self.ca_root_certificate_file_name,
+            ca_certificate
+        )
