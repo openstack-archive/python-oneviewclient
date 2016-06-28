@@ -258,6 +258,55 @@ class ClientV2(BaseClient):
         self.server_profile_template = managers.ServerProfileTemplateManager(
             self
         )
+        self.certificate = managers.CertificateManager(self)
+
+    # --- Power Driver ---
+    def get_node_power_state(self, node_info):
+        return self.get_server_hardware(node_info).power_state
+
+    def power_on(self, node_info):
+        if self.get_node_power_state(node_info) == \
+           states.ONEVIEW_POWER_ON:
+            ret = states.ONEVIEW_POWER_ON
+        else:
+            ret = self.set_node_power_state(
+                node_info, states.ONEVIEW_POWER_ON
+            )
+        return ret
+
+    def power_off(self, node_info):
+        if self.get_node_power_state(node_info) == \
+           states.ONEVIEW_POWER_OFF:
+            ret = states.ONEVIEW_POWER_OFF
+        else:
+            ret = self.set_node_power_state(
+                node_info, states.ONEVIEW_POWER_OFF, PRESS_AND_HOLD
+            )
+        return ret
+
+    def set_node_power_state(
+        self, node_info, state, press_type=MOMENTARY_PRESS
+    ):
+        body = {'powerState': state, 'powerControl': press_type}
+        power_state_uri = (node_info.get('server_hardware_uri') +
+                           '/powerState')
+        task = self._prepare_and_do_request(
+            uri=power_state_uri, body=body, request_type=PUT_REQUEST_TYPE
+        )
+        try:
+            self._wait_for_task_to_complete(task)
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorStateSettingPowerState(e.message)
+
+        return state
+
+    # --- Management Driver ---
+    def get_server_hardware(self, node_info):
+        uuid = node_info['server_hardware_uri'].split("/")[-1]
+        return self.server_hardware.get(uuid)
+
+    def get_server_hardware_by_uuid(self, uuid):
+        return self.server_hardware.get(uuid)
 
 
 class Client(BaseClient):
@@ -277,6 +326,7 @@ class Client(BaseClient):
             self
         )
         self._server_profile = managers.ServerProfileManager(self)
+        self.certificate = managers.CertificateManager(self)
 
     # --- Power Driver ---
     def get_node_power_state(self, node_info):
@@ -544,7 +594,7 @@ class Client(BaseClient):
             for connection in server_profile.connections:
                 boot = connection.get('boot')
                 if (boot is not None and
-                   boot.get('priority').lower() == 'primary'):
+                        boot.get('priority').lower() == 'primary'):
                     primary_boot_connection = connection
 
             if primary_boot_connection is None:
