@@ -604,6 +604,5 @@ class OneViewClientV2TestCase(unittest.TestCase):
             verify=True
         )
 
-
 if __name__ == '__main__':
     unittest.main()

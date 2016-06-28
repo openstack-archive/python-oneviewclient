@@ -25,6 +25,11 @@ from oneview_client import models
 ONEVIEW_POWER_ON = 'On'
 ONEVIEW_POWER_OFF = 'Off'
 
+GET_REQUEST_TYPE = 'GET'
+PUT_REQUEST_TYPE = 'PUT'
+POST_REQUEST_TYPE = 'POST'
+DELETE_REQUEST_TYPE = 'DELETE'
+
 
 @six.add_metaclass(abc.ABCMeta)
 class OneViewManager(object):
@@ -238,3 +243,41 @@ class ServerProfileTemplateManager(OneViewManager):
     def delete(self, uuid):
         raise NotImplementedError("ServerProfileTemplate isn't supposed to be "
                                   "deleted.")
+
+
+class CertificateManager(object):
+
+    rabbitmq_uri_create_certificate = '/rest/certificates/client/rabbitmq'
+    rabbitmq_request_body_certificate = {"type": "RabbitMqClientCertV2",
+                                         "commonName": ""}
+    rabbitmq_uri_client_certificate = \
+        '/rest/certificates/client/rabbitmq/keypair/'
+    root_ca_certificate_uri = '/rest/certificates/ca'
+
+    def __init__(self, oneview_client):
+        self.oneview_client = oneview_client
+
+    def create_certificate(self, name):
+        self.rabbitmq_request_body_certificate['commonName'] = name
+        certificate = self.oneview_client._prepare_and_do_request(
+            self.rabbitmq_uri_create_certificate,
+            body=self.rabbitmq_request_body_certificate,
+            request_type=POST_REQUEST_TYPE
+        )
+
+        return certificate
+
+    def get_client_certificate(self, name):
+        self.rabbitmq_uri_client_certificate += name
+        client_certificate = self.oneview_client._prepare_and_do_request(
+            self.rabbitmq_uri_client_certificate
+        )
+
+        return client_certificate
+
+    def get_root_ca_certificate(self):
+        ca_certificate = self.oneview_client._prepare_and_do_request(
+            self.root_ca_certificate_uri
+        )
+
+        return ca_certificate

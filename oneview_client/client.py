@@ -258,6 +258,7 @@ class ClientV2(BaseClient):
         self.server_profile_template = managers.ServerProfileTemplateManager(
             self
         )
+        self.certificate = managers.CertificateManager(self)
 
 
 class Client(BaseClient):
@@ -544,7 +545,7 @@ class Client(BaseClient):
             for connection in server_profile.connections:
                 boot = connection.get('boot')
                 if (boot is not None and
-                   boot.get('priority').lower() == 'primary'):
+                        boot.get('priority').lower() == 'primary'):
                     primary_boot_connection = connection
 
             if primary_boot_connection is None:
