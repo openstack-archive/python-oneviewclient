@@ -21,6 +21,7 @@ import time
 import requests
 import retrying
 
+from oneview_client import auditing
 from oneview_client import exceptions
 from oneview_client import ilo_utils
 from oneview_client import managers
@@ -51,7 +52,8 @@ class BaseClient(object):
     def __init__(
         self, manager_url, username, password,
         allow_insecure_connections=False, tls_cacert_file='',
-        max_polling_attempts=20
+        max_polling_attempts=20, audit_enabled=False,
+        audit_map_file='', audit_output_file=''
     ):
         self.manager_url = manager_url
         self.username = username
@@ -59,21 +61,33 @@ class BaseClient(object):
         self.allow_insecure_connections = allow_insecure_connections
         self.tls_cacert_file = tls_cacert_file
         self.max_polling_attempts = max_polling_attempts
+        self.audit_enabled = audit_enabled
+        self.audit_map_file = audit_map_file
+        self.audit_output_file = audit_output_file
+        self.audit_case_methods = []
 
         if self.allow_insecure_connections:
             requests.packages.urllib3.disable_warnings(
                 requests.packages.urllib3.exceptions.InsecureRequestWarning
             )
 
+        if self.audit_enabled:
+            self.audit_case_methods = auditing.read_audit_map_file(
+                self.audit_map_file
+            )
+
         self.session_id = self.get_session()
 
+    @auditing.audit
     def verify_credentials(self):
         return self._authenticate()
 
+    @auditing.audit
     def get_session(self):
         response = self._authenticate()
         return response.json().get('sessionID')
 
+    @auditing.audit
     def _authenticate(self):
         if self.manager_url in ("", None):
             raise exceptions.OneViewConnectionError(
@@ -100,6 +114,7 @@ class BaseClient(object):
         else:
             return r
 
+    @auditing.audit
     def _get_verify_connection_option(self):
         verify_status = False
         user_cacert = self.tls_cacert_file
@@ -111,12 +126,14 @@ class BaseClient(object):
                 verify_status = user_cacert
         return verify_status
 
+    @auditing.audit
     def verify_oneview_version(self):
         if not self._is_oneview_version_compatible():
             msg = ("The version of the OneView's API is unsupported. "
                    "Supported version is '%s'" % SUPPORTED_ONEVIEW_VERSION)
             raise exceptions.IncompatibleOneViewAPIVersion(msg)
 
+    @auditing.audit
     def _is_oneview_version_compatible(self):
         versions = self.get_oneview_version()
         v = SUPPORTED_ONEVIEW_VERSION
@@ -124,6 +141,7 @@ class BaseClient(object):
         max_version_compatible = versions.get("currentVersion") >= v
         return min_version_compatible and max_version_compatible
 
+    @auditing.audit
     def get_oneview_version(self):
         url = '%s/rest/version' % self.manager_url
         headers = {"Accept-Language": "en_US"}
@@ -133,11 +151,12 @@ class BaseClient(object):
         response = requests.get(
             url, headers=headers, verify=verify_ssl
         )
-        _check_request_status(response)
+        self._check_request_status(response)
         versions = response.json()
         return versions
 
     # --- Requests ---
+    @auditing.audit
     def _prepare_and_do_request(
         self, uri, body={}, request_type=GET_REQUEST_TYPE
     ):
@@ -163,12 +182,15 @@ class BaseClient(object):
 
         return json_response
 
+    @auditing.audit
     def _do_request(self, url, headers, body, request_type):
         verify_status = self._get_verify_connection_option()
 
         @retrying.retry(
             stop_max_attempt_number=self.max_polling_attempts,
-            retry_on_result=lambda response: _check_request_status(response),
+            retry_on_result=lambda response: self._check_request_status(
+                response
+            ),
             wait_fixed=WAIT_DO_REQUEST_IN_MILLISECONDS
         )
         def request(url, headers, body, request_type):
@@ -192,6 +214,7 @@ class BaseClient(object):
             return response
         return request(url, headers, body, request_type)
 
+    @auditing.audit
     def _wait_for_task_to_complete(self, task):
         @retrying.retry(
             retry_on_result=lambda task: task.get('percentComplete') < 100,
@@ -217,6 +240,7 @@ class BaseClient(object):
             return task
         return wait(task)
 
+    @auditing.audit
     def _get_ilo_access(self, server_hardware_uuid):
         uri = ("/rest/server-hardware/%s/remoteConsoleUrl"
                % server_hardware_uuid)
@@ -230,6 +254,7 @@ class BaseClient(object):
 
         return host_ip, token
 
+    @auditing.audit
     def get_sh_mac_from_ilo(self, server_hardware_uuid, nic_index=0):
         host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
         try:
@@ -237,6 +262,7 @@ class BaseClient(object):
         finally:
             ilo_utils.ilo_logout(host_ip, ilo_token)
 
+    @auditing.audit
     def _set_onetime_boot(self, server_hardware_uuid, boot_device):
         host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
         oneview_ilo_mapping = {
@@ -259,17 +285,45 @@ class BaseClient(object):
         finally:
             ilo_utils.ilo_logout(host_ip, ilo_token)
 
+    @auditing.audit
+    def _check_request_status(self, response):
+        repeat = False
+        status = response.status_code
+
+        if status in (401, 403):
+            error_code = response.json().get('errorCode')
+            raise exceptions.OneViewNotAuthorizedException(error_code)
+        elif status == 404:
+            raise exceptions.OneViewResourceNotFoundError()
+        elif status in (408, 409,):
+            time.sleep(10)
+            repeat = True
+        elif status == 500:
+            raise exceptions.OneViewInternalServerError()
+        # Any other unexpected status are logged
+        elif status not in (200, 202,):
+            message = (
+                "OneView appliance returned an unknown response status: %s"
+                % status
+            )
+            raise exceptions.UnknowOneViewResponseError(message)
+        return repeat
+
 
 class ClientV2(BaseClient):
 
     def __init__(
         self, manager_url, username, password,
         allow_insecure_connections=False, tls_cacert_file='',
-        max_polling_attempts=20
+        max_polling_attempts=20, audit_enabled=False,
+        audit_map_file='', audit_output_file=''
     ):
         super(ClientV2, self).__init__(manager_url, username, password,
                                        allow_insecure_connections,
-                                       tls_cacert_file, max_polling_attempts)
+                                       tls_cacert_file, max_polling_attempts,
+                                       audit_enabled, audit_map_file,
+                                       audit_output_file)
+
         # Next generation
         self.enclosure = managers.EnclosureManager(self)
         self.enclosure_group = managers.EnclosureGroupManager(self)
@@ -287,11 +341,14 @@ class Client(BaseClient):
     def __init__(
         self, manager_url, username, password,
         allow_insecure_connections=False, tls_cacert_file='',
-        max_polling_attempts=20
+        max_polling_attempts=20, audit_enabled=False,
+        audit_map_file='', audit_output_file=''
     ):
         super(Client, self).__init__(manager_url, username, password,
                                      allow_insecure_connections,
-                                     tls_cacert_file, max_polling_attempts)
+                                     tls_cacert_file, max_polling_attempts,
+                                     audit_enabled, audit_map_file,
+                                     audit_output_file)
         # Next generation
         self._enclosure_group = managers.EnclosureGroupManager(self)
         self._server_hardware = managers.ServerHardwareManager(self)
@@ -301,9 +358,11 @@ class Client(BaseClient):
         self._server_profile = managers.ServerProfileManager(self)
 
     # --- Power Driver ---
+    @auditing.audit
     def get_node_power_state(self, node_info):
         return self.get_server_hardware(node_info).power_state
 
+    @auditing.audit
     def power_on(self, node_info):
         if self.get_node_power_state(node_info) == \
            states.ONEVIEW_POWER_ON:
@@ -314,6 +373,7 @@ class Client(BaseClient):
             )
         return ret
 
+    @auditing.audit
     def power_off(self, node_info):
         if self.get_node_power_state(node_info) == \
            states.ONEVIEW_POWER_OFF:
@@ -324,6 +384,7 @@ class Client(BaseClient):
             )
         return ret
 
+    @auditing.audit
     def set_node_power_state(
         self, node_info, state, press_type=MOMENTARY_PRESS
     ):
@@ -341,13 +402,16 @@ class Client(BaseClient):
         return state
 
     # --- Management Driver ---
+    @auditing.audit
     def get_server_hardware(self, node_info):
         uuid = node_info['server_hardware_uri'].split("/")[-1]
         return self._server_hardware.get(uuid)
 
+    @auditing.audit
     def get_server_hardware_by_uuid(self, uuid):
         return self._server_hardware.get(uuid)
 
+    @auditing.audit
     def get_server_profile_from_hardware(self, node_info):
         server_hardware = self.get_server_hardware(node_info)
         server_profile_uri = server_hardware.server_profile_uri
@@ -363,22 +427,27 @@ class Client(BaseClient):
         server_profile_uuid = server_profile_uri.split("/")[-1]
         return self._server_profile.get(server_profile_uuid)
 
+    @auditing.audit
     def get_server_profile_template(self, node_info):
         uuid = node_info['server_profile_template_uri'].split("/")[-1]
         return self._server_profile_template.get(uuid)
 
+    @auditing.audit
     def get_server_profile_template_by_uuid(self, uuid):
         return self._server_profile_template.get(uuid)
 
+    @auditing.audit
     def get_server_profile_by_uuid(self, uuid):
         return self._server_profile.get(uuid)
 
+    @auditing.audit
     def get_boot_order(self, node_info):
         server_profile = self.get_server_profile_from_hardware(
             node_info
         )
         return server_profile.boot.get("order")
 
+    @auditing.audit
     def set_boot_device(self, node_info, new_primary_boot_device,
                         onetime=False):
         if new_primary_boot_device is None:
@@ -402,6 +471,7 @@ class Client(BaseClient):
         self._persistent_set_boot_device(node_info, boot_order,
                                          new_primary_boot_device)
 
+    @auditing.audit
     def _persistent_set_boot_device(self, node_info, boot_order,
                                     new_primary_boot_device):
 
@@ -432,6 +502,7 @@ class Client(BaseClient):
             raise exceptions.OneViewErrorSettingBootDevice(e.message)
 
     # ---- Deploy Driver ----
+    @auditing.audit
     def clone_template_and_apply(self,
                                  server_profile_name,
                                  server_hardware_uuid,
@@ -496,6 +567,7 @@ class Client(BaseClient):
 
         return server_profile
 
+    @auditing.audit
     def delete_server_profile(self, uuid):
         if not uuid:
             raise ValueError('Missing Server Profile uuid.')
@@ -514,6 +586,7 @@ class Client(BaseClient):
         return complete_task.get('associatedResource').get('resourceUri')
 
     # ---- Node Validate ----
+    @auditing.audit
     def validate_node_server_hardware(
         self, node_info, node_memorymb, node_cpus
     ):
@@ -536,6 +609,7 @@ class Client(BaseClient):
             )
             raise exceptions.OneViewInconsistentResource(message)
 
+    @auditing.audit
     def validate_node_server_hardware_type(self, node_info):
         node_sht_uri = node_info.get('server_hardware_type_uri')
         server_hardware = self.get_server_hardware(node_info)
@@ -550,9 +624,11 @@ class Client(BaseClient):
             )
             raise exceptions.OneViewInconsistentResource(message)
 
+    @auditing.audit
     def check_server_profile_is_applied(self, node_info):
         self.get_server_profile_from_hardware(node_info)
 
+    @auditing.audit
     def validate_node_enclosure_group(self, node_info):
         server_hardware = self.get_server_hardware(node_info)
         sh_enclosure_group_uri = server_hardware.enclosure_group_uri
@@ -573,6 +649,7 @@ class Client(BaseClient):
                 )
                 raise exceptions.OneViewInconsistentResource(message)
 
+    @auditing.audit
     def is_node_port_mac_compatible_with_server_profile(
         self, node_info, ports
     ):
@@ -621,6 +698,7 @@ class Client(BaseClient):
             )
             raise exceptions.OneViewInconsistentResource(message)
 
+    @auditing.audit
     def is_node_port_mac_compatible_with_server_hardware(
         self, node_info, ports
     ):
@@ -647,6 +725,7 @@ class Client(BaseClient):
             )
             raise exceptions.OneViewInconsistentResource(message)
 
+    @auditing.audit
     def validate_node_server_profile_template(self, node_info):
         node_spt_uri = node_info.get('server_profile_template_uri')
 
@@ -677,6 +756,7 @@ class Client(BaseClient):
             )
             raise exceptions.OneViewInconsistentResource(message)
 
+    @auditing.audit
     def validate_spt_boot_connections(self, uuid):
         server_profile_template = self.get_server_profile_template_by_uuid(
             uuid
@@ -691,27 +771,3 @@ class Client(BaseClient):
             " template %s." % server_profile_template.uri
         )
         raise exceptions.OneViewInconsistentResource(message)
-
-
-def _check_request_status(response):
-    repeat = False
-    status = response.status_code
-
-    if status in (401, 403):
-        error_code = response.json().get('errorCode')
-        raise exceptions.OneViewNotAuthorizedException(error_code)
-    elif status == 404:
-        raise exceptions.OneViewResourceNotFoundError()
-    elif status in (408, 409,):
-        time.sleep(10)
-        repeat = True
-    elif status == 500:
-        raise exceptions.OneViewInternalServerError()
-    # Any other unexpected status are logged
-    elif status not in (200, 202,):
-        message = (
-            "OneView appliance returned an unknown response status: %s"
-            % status
-        )
-        raise exceptions.UnknowOneViewResponseError(message)
-    return repeat
