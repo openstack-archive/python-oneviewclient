@@ -318,3 +318,58 @@ class EthernetNetworkManager(OneViewManager):
             self.oneview_client._wait_for_task_to_complete(task)
         except exceptions.OneViewTaskError as e:
             raise exceptions.OneViewServerProfileDeletionError(e.message)
+
+
+class UplinkSetManager(OneViewManager):
+    model = models.UplinkSet
+    uri_prefix = '/rest/uplink-sets/'
+
+    def create(self, **kwargs):
+        raise NotImplementedError("UplinkSet isn't supposed to be created.")
+
+    def delete(self, uuid):
+        raise NotImplementedError("UplinkSet isn't supposed to be deleted.")
+
+    def add_network(self, uplinkset_uuid, network_uuid):
+        network_uri = utils.get_uri_from_uuid(
+            EthernetNetworkManager.uri_prefix, network_uuid
+        )
+        uplinkset = self.get(uplinkset_uuid)
+        if uplinkset is None:
+            message = "Uplink Set not found with uuid: %(uuid)s" % {
+                'uuid': uplinkset_uuid
+            }
+            raise exceptions.OneViewResourceNotFoundError(message)
+
+        uplinkset.add_network(network_uri)
+
+        task = self.oneview_client._prepare_and_do_request(
+            uri=uplinkset.uri, body=uplinkset.to_oneview_dict(),
+            request_type='PUT'
+        )
+        try:
+            task_completed = self.oneview_client._wait_for_task_to_complete(
+                task
+            )
+            return task_completed.get('associatedResource').get('resourceUri')
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorUpdatingUplinkSet(e.message)
+
+    def remove_network(self, uplinkset_uuid, network_uuid):
+        network_uri = utils.get_uri_from_uuid(
+            EthernetNetworkManager.uri_prefix, network_uuid
+        )
+        uplinkset = self.get(uplinkset_uuid)
+        uplinkset.remove_network(network_uri)
+
+        task = self.oneview_client._prepare_and_do_request(
+            uri=uplinkset.uri, body=uplinkset.to_oneview_dict(),
+            request_type='PUT'
+        )
+        try:
+            task_completed = self.oneview_client._wait_for_task_to_complete(
+                task
+            )
+            return task_completed.get('associatedResource').get('resourceUri')
+        except exceptions.OneViewTaskError as e:
+            raise exceptions.OneViewErrorUpdatingUplinkSet(e.message)
