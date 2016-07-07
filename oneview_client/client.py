@@ -259,6 +259,7 @@ class ClientV2(BaseClient):
             self
         )
         self.ethernet_network = managers.EthernetNetworkManager(self)
+        self.uplinkset = managers.UplinkSetManager(self)
 
 
 class Client(BaseClient):
