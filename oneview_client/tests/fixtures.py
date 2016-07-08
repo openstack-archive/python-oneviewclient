@@ -5080,6 +5080,58 @@ SERVER_PROFILE_LIST_JSON = {
     "uri": "/rest/server-profiles"
 }
 
+SERVER_PROFILE_MODEL_JSON = {
+    "uri": "/rest/server-profiles/f2160e28-8107-45f9-b4b2-3119a622a3a1",
+    "name": "blade3",
+    "serverProfileTemplateUri": None,
+    "templateCompliance": "Unknown",
+    "serverHardwareUri": "/rest/server-hardware/30313436-3631-5242-4333-303632"
+                         "544333",
+    "serverHardwareTypeUri": "/rest/server-hardware-types/CB2ECE5C-C053-4288-8"
+                             "6FE-A65B565BCAA4",
+    "enclosureGroupUri": "/rest/enclosure-groups/9869a2ea-55ef-4f1f-90a3-8fbf7"
+                         "1c0ad12",
+    "enclosureUri": "/rest/enclosures/09BRC3203AFD",
+    "status": "OK",
+    "connections": [
+        {
+            "id": 1,
+            "functionType": "Ethernet",
+            "deploymentStatus": "Deployed",
+            "networkUri": "/rest/ethernet-networks/850cb594-9c6c-4c61-b4eb-d47"
+                          "75859c4c7",
+            "portId": "Flb 1:1-a",
+            "interconnectUri": "/rest/interconnects/d6793c22-ded7-44b7-bdad-54"
+                               "16d8534c39",
+            "macType": "Virtual",
+            "wwpnType": "Virtual",
+            "mac": "F6:08:CF:00:00:01",
+            "wwnn": None,
+            "wwpn": None,
+            "requestedMbps": 2500,
+            "allocatedMbps": 2500,
+            "maximumMbps": 10000,
+            "boot": {
+                "priority": "NotBootable"
+            }
+        }
+    ],
+    "boot": {
+        "order": [
+            "CD",
+            "Floppy",
+            "USB",
+            "HardDisk",
+            "PXE"
+        ],
+        "manageBoot": True
+    },
+    "sanStorage": {
+        "manageSanStorage": False,
+        "volumeAttachments": []
+    }
+}
+
 INDEX_SERVER_HARDWARE_LIST_JSON = json.loads("""{
     "type": "IndexPaginatedCollectionV4",
     "category": "resources",

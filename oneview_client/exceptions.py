@@ -92,3 +92,7 @@ class OneViewServerProfileDeletionError(OneViewException):
 
 class OneViewErrorUpdatingUplinkSet(OneViewException):
     message = ("There was an error updating this Uplink Set.")
+
+
+class OneViewErrorUpdatingServerProfile(OneViewException):
+    message = ("There was an error updating this Server Profile.")
