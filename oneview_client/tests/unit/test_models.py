@@ -216,5 +216,33 @@ class Test(unittest.TestCase):
         server_hardware.port_map = fixtures.PORT_MAP
         self.assertEqual("d8:9d:67:73:54:00", server_hardware.get_mac())
 
+    def test_serverprofile_next_connection_id_without_connections(self):
+        server_profile = models.ServerProfile()
+        server_profile.connections = []
+        self.assertEqual(1, server_profile.next_connection_id())
+
+    def test_serverprofile_next_connection_id(self):
+        max_conn_id = 4
+        connections = [
+            {'id': max_conn_id}
+        ]
+        server_profile = models.ServerProfile()
+        server_profile.connections = connections
+        self.assertEqual(max_conn_id + 1, server_profile.next_connection_id())
+
+    def test_serverprofile_get_nonexistend_connection(self):
+        server_profile = models.ServerProfile()
+        self.assertEqual(None, server_profile.get_connection(1))
+
+    def test_serverprofile_get_connection(self):
+        conn = {'id': 4}
+        connections = [
+            {'id': 1}, conn
+        ]
+        server_profile = models.ServerProfile()
+        server_profile.connections = connections
+        self.assertEqual(conn, server_profile.get_connection(4))
+
+
 if __name__ == '__main__':
     unittest.main()

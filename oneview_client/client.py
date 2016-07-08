@@ -149,7 +149,8 @@ class BaseClient(object):
             headers = {
                 'content-type': 'application/json',
                 'X-Api-Version': SUPPORTED_ONEVIEW_VERSION,
-                'Auth': self.session_id
+                'Auth': self.session_id,
+                'If-Match': '*'
             }
             url = '%s%s' % (self.manager_url, uri)
             body = json.dumps(body)
