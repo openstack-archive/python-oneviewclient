@@ -22,6 +22,7 @@ import unittest
 
 from oneview_client import client
 from oneview_client import exceptions
+from oneview_client import ilo_utils
 from oneview_client import models
 from oneview_client.tests import fixtures
 from oneview_client import utils
@@ -286,6 +287,113 @@ class OneViewClientTestCase(unittest.TestCase):
                 oneview_client.validate_spt_boot_connections,
                 utils.get_uuid_from_uri(spt.get('uri'))
             )
+
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    @mock.patch.object(requests, 'get', autospec=True)
+    @mock.patch.object(requests, 'put', autospec=True)
+    def test_set_boot_device(self, mock_put, mock_get, mock__wait_for_task,
+                             mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        response = mock_put.return_value
+        response.status_code = http_client.OK
+        mock_put.return_value = response
+
+        hardware = mock.MagicMock()
+        hardware.status_code = http_client.OK
+        hardware.json = mock.MagicMock(
+            return_value=fixtures.SERVER_HARDWARE_LIST_JSON['members'][0]
+        )
+        profile = mock.MagicMock()
+        profile.status_code = http_client.OK
+        profile.json = mock.MagicMock(
+            return_value=fixtures.SERVER_PROFILE_JSON
+        )
+        mock_get.side_effect = [hardware, profile, hardware, profile]
+        oneview_client._wait_for_task_to_complete = mock__wait_for_task
+
+        node_info = {
+            'server_hardware_uri':
+                '/rest/server-hardware/30303437-3933-4753-4831-31315835524E'
+        }
+
+        oneview_client.set_boot_device(node_info, 'PXE')
+        mock_put.assert_called_once_with(
+            self.manager_url + fixtures.SERVER_PROFILE_JSON.get('uri'),
+            data=mock.ANY,
+            headers=mock.ANY,
+            verify=True
+        )
+        self.assertIn('["PXE", "CD", "Floppy", "USB", "HardDisk"]',
+                      mock_put.call_args[1]['data'])
+
+    @mock.patch.object(ilo_utils, 'ilo_logout')
+    @mock.patch.object(client.Client, '_get_ilo_access')
+    @mock.patch.object(client.Client, '_wait_for_task_to_complete')
+    @mock.patch.object(requests, 'get', autospec=True)
+    @mock.patch.object(requests, 'patch', autospec=True)
+    def test_set_boot_device_onetime(self, mock_patch, mock_get,
+                                     mock__wait_for_task, mock_get_ilo_access,
+                                     mock_ilo_logout, mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        hardware = mock.MagicMock()
+        hardware.status_code = http_client.OK
+        hardware.json = mock.MagicMock(
+            return_value=fixtures.SERVER_HARDWARE_LIST_JSON['members'][0]
+        )
+        profile = mock.MagicMock()
+        profile.status_code = http_client.OK
+        profile.json = mock.MagicMock(
+            return_value=fixtures.SERVER_PROFILE_JSON
+        )
+        ilo_system = mock.MagicMock()
+        ilo_system.status_code = http_client.OK
+        ilo_system.json = mock.MagicMock(
+            return_value={
+                "Type": "Collection.0",
+                "Items": [
+                    {
+                        "links": {"self": {"href": "/rest/v1/Systems/1"}},
+                        "Type": "ComputerSystem.0",
+                        "Boot": {
+                            "BootSourceOverrideSupported": ["Hdd", "Cd"],
+                        }
+                    },
+                ]
+            }
+        )
+        mock_get.side_effect = [hardware, profile,  # hardware, profile,
+                                ilo_system]
+
+        response2 = mock_patch.return_value
+        response2.status_code = http_client.OK
+        mock_patch.return_value = response2
+
+        my_host = 'my-host'
+        key = '123'
+        mock_get_ilo_access.return_value = (my_host, key)
+
+        oneview_client._wait_for_task_to_complete = mock__wait_for_task
+
+        node_info = {
+            'server_hardware_uri':
+                '/rest/server-hardware/30303437-3933-4753-4831-31315835524E'
+        }
+
+        oneview_client.set_boot_device(node_info, 'HardDisk', onetime=True)
+        mock_patch.assert_called_once_with(
+            'https://' + my_host + '/rest/v1/Systems/1',
+            data='{"Boot": {"BootSourceOverrideTarget": "Hdd"}}',
+            headers={
+                'Content-Type': 'application/json',
+                'X-Auth-Token': key},
+            verify=True
+        )
+        mock_ilo_logout.assert_called()
 
 
 @mock.patch.object(client.ClientV2, '_authenticate', autospec=True)

@@ -13,6 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import json
 import requests
 
 from oneview_client import exceptions
@@ -33,17 +34,34 @@ def rest_op(operation, host, suburi, request_headers, request_body,
     if operation == "GET":
         response = requests.get(url, headers=request_headers,
                                 verify=enforce_SSL)
+        return_value = (response.status_code, response.headers,
+                        response.json())
     elif operation == "DELETE":
         response = requests.delete(url, headers=request_headers,
                                    verify=enforce_SSL)
+        return_value = (response.status_code, response.headers,
+                        response.json())
+    elif operation == "PATCH":
+        response = requests.patch(url, data=json.dumps(request_body),
+                                  headers=request_headers, verify=enforce_SSL)
+        return_value = (response.status_code, response.headers,
+                        response.json())
 
-    return response.status_code, response.headers, response.json()
+    return return_value
 
 
 # REST GET
 def rest_get(host, suburi, request_headers, x_auth_token, enforce_SSL=True):
     return rest_op('GET', host, suburi, request_headers, None, x_auth_token,
                    enforce_SSL=enforce_SSL)
+    # NOTE:  be prepared for various HTTP responses including 500, 404, etc.
+
+
+# REST PATCH
+def rest_patch(host, suburi, request_headers, request_body, x_auth_token,
+               enforce_SSL=True):
+    return rest_op('PATCH', host, suburi, request_headers, request_body,
+                   x_auth_token, enforce_SSL=enforce_SSL)
     # NOTE:  be prepared for various HTTP responses including 500, 404, etc.
 
 
@@ -67,7 +85,6 @@ def collection(host, collection_uri, request_headers, x_auth_token,
                                               enforce_SSL)
 
     while status < 300:
-
         # verify expected type
 
         # NOTE:  Because of the Redfish standards effort, we have versioned
@@ -95,7 +112,6 @@ def collection(host, collection_uri, request_headers, x_auth_token,
         # vs. the Items in case a collection contains both.
 
         if 'Items' in thecollection:
-
             # iterate items
             for item in thecollection['Items']:
                 # if the item has a self uri pointer, supply that for
@@ -143,12 +159,12 @@ def collection(host, collection_uri, request_headers, x_auth_token,
         raise exceptions.IloException("HTTP %s" % status)
 
 
-def get_mac_from_ilo(host_ip, x_auth_token, nic_index=0):
+def get_mac_from_ilo(host_ip, x_auth_token, nic_index=0, allow_insecure=False):
     # for each system in the systems collection at /rest/v1/Systems
     ilo_hardware = collection(host_ip, '/rest/v1/Systems', None,
-                              x_auth_token, enforce_SSL=False)
+                              x_auth_token, enforce_SSL=not allow_insecure)
 
-    for status, headers, system, memberuri in ilo_hardware:
+    for status, headers, system, member_uri in ilo_hardware:
         # verify expected type
         # hint:  don't limit to version 0 here as we will rev to 1.0 at
         # some point hopefully with minimal changes
@@ -164,12 +180,37 @@ def get_mac_from_ilo(host_ip, x_auth_token, nic_index=0):
             return system['HostCorrelation']['HostMACAddress'][nic_index]
 
 
+def set_onetime_boot(host_ip, x_auth_token, boot_target, allow_insecure=False):
+    # for each system in the systems collection at /rest/v1/Systems
+    ilo_hardware = collection(host_ip, '/rest/v1/Systems', None,
+                              x_auth_token, enforce_SSL=not allow_insecure)
+
+    for status, headers, system, member_uri in ilo_hardware:
+        # verify expected type
+        # hint:  don't limit to version 0 here as we will rev to 1.0 at
+        # some point hopefully with minimal changes
+        assert(get_type(system) == 'ComputerSystem.0' or
+               get_type(system) == 'ComputerSystem.1')
+
+        if boot_target not in system["Boot"]["BootSourceOverrideSupported"]:
+            raise exceptions.IloException(
+                "ERROR: %s is not a supported boot option.\n" % boot_target)
+        else:
+            body = {"Boot": {"BootSourceOverrideTarget": boot_target}}
+            headers = {"Content-Type": "application/json"}
+            status_code, _, response = rest_patch(host_ip, member_uri, headers,
+                                                  body, x_auth_token,
+                                                  not allow_insecure)
+            if status_code != 200:
+                raise exceptions.IloException(response)
+
+
 def ilo_logout(host_ip, x_auth_token):
     sessions = collection(host_ip, '/rest/v1/sessions', None, x_auth_token,
                           enforce_SSL=False)
-    for status, headers, member, memberuri in sessions:
+    for status, headers, member, member_uri in sessions:
         if member.get('Oem').get('Hp').get('MySession') is True:
-            status, headers, member = rest_delete(host_ip, memberuri, None,
+            status, headers, member = rest_delete(host_ip, member_uri, None,
                                                   x_auth_token, False)
             if status != 200:
                 message = "iLO returned HTTP %s" % status

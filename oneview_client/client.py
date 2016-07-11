@@ -25,6 +25,7 @@ from oneview_client import exceptions
 from oneview_client import ilo_utils
 from oneview_client import managers
 from oneview_client import states
+from oneview_client import utils
 
 SUPPORTED_ONEVIEW_VERSION = 200
 
@@ -237,6 +238,22 @@ class BaseClient(object):
         finally:
             ilo_utils.ilo_logout(host_ip, ilo_token)
 
+    def _set_onetime_boot(self, server_hardware_uuid, boot_device):
+        host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
+        mapping = {
+            'HardDisk': 'Hdd',
+            'PXE': 'Pxe',
+            'CD': 'Cd',
+        }
+        try:
+            return ilo_utils.set_onetime_boot(host_ip, ilo_token,
+                                              mapping[boot_device],
+                                              self.allow_insecure_connections)
+        except exceptions.IloException as e:
+            raise e
+        finally:
+            ilo_utils.ilo_logout(host_ip, ilo_token)
+
 
 class ClientV2(BaseClient):
 
@@ -357,11 +374,32 @@ class Client(BaseClient):
         )
         return server_profile.boot.get("order")
 
-    def set_boot_device(self, node_info, new_primary_boot_device):
+    def set_boot_device(self, node_info, new_primary_boot_device,
+                        onetime=False):
         boot_order = self.get_boot_order(node_info)
 
         if new_primary_boot_device is None:
             raise exceptions.OneViewBootDeviceInvalidError()
+
+        if new_primary_boot_device == boot_order[0]:
+            return
+
+        if onetime:
+            try:
+                sh_uuid = utils.get_uuid_from_uri(
+                    node_info['server_hardware_uri']
+                )
+                self._set_onetime_boot(sh_uuid, new_primary_boot_device)
+                return
+            except exceptions.IloException:
+                # Falls back to persistent in case of failure
+                pass
+
+        self._persistent_set_boot_device(node_info, boot_order,
+                                         new_primary_boot_device)
+
+    def _persistent_set_boot_device(self, node_info, boot_order,
+                                    new_primary_boot_device):
 
         if new_primary_boot_device in boot_order:
             boot_order.remove(new_primary_boot_device)
