@@ -287,6 +287,7 @@ class OneViewClientTestCase(unittest.TestCase):
             self.oneview_client, uri="/rest/server-hardware/555"
         )
 
+    @mock.patch.object(client.Client, '_set_onetime_boot')
     @mock.patch.object(client.Client, '_wait_for_task_to_complete',
                        autospec=True)
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
@@ -295,23 +296,52 @@ class OneViewClientTestCase(unittest.TestCase):
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_set_boot_device(
         self, mock_get_server_hardware, mock_get_server_profile,
-        mock__prepare_do_request, mock__wait_for_task
+        mock__prepare_do_request, mock__wait_for_task, mock_set_onetime_boot
     ):
-        mock_get_server_hardware.return_value = (
+
+        server_hardware = (
             models.ServerHardware.from_json(fixtures.SERVER_HARDWARE_JSON)
         )
+        mock_get_server_hardware.return_value = server_hardware
         mock_get_server_profile.return_value = (
             models.ServerProfile.from_json(fixtures.SERVER_PROFILE_JSON)
         )
         expected_profile = copy.deepcopy(fixtures.SERVER_PROFILE_JSON)
         expected_profile['boot'] = {
             'manageBoot': True,
-            'order': ["USB", "CD", "Floppy", "HardDisk", "PXE"]
+            # Original boot order is ["CD", "Floppy", "USB", "HardDisk", "PXE"]
+            'order': ["PXE", "CD", "Floppy", "USB", "HardDisk"]
         }
         driver_info = {"server_hardware_uri": "/any"}
-        new_first_boot_device = "USB"
-
+        new_first_boot_device = "PXE"
+        # Persistent
         self.oneview_client.set_boot_device(driver_info, new_first_boot_device)
+        mock__prepare_do_request.assert_called_once_with(
+            self.oneview_client,
+            body=expected_profile,
+            request_type='PUT',
+            uri='/rest/server-profiles/f2160e28-8107-45f9-b4b2-3119a622a3a1'
+        )
+        # Onetime
+        new_first_boot_device = "USB"
+        self.oneview_client.set_boot_device(driver_info, new_first_boot_device,
+                                            onetime=True)
+        mock_set_onetime_boot.assert_called_once_with(
+            'any',
+            new_first_boot_device
+        )
+        # Fallback in case onetime fails
+        new_first_boot_device = "HardDisk"
+        mock__prepare_do_request.reset_mock()
+        mock_set_onetime_boot.reset_mock()
+        expected_profile['boot'] = {
+            'manageBoot': True,
+            # Boot order should be ["PXE", "CD", "Floppy", "USB", "HardDisk"]
+            'order': ["HardDisk", "PXE", "CD", "Floppy", "USB"]
+        }
+        mock_set_onetime_boot.side_effect = [exceptions.IloException("BOOM")]
+        self.oneview_client.set_boot_device(driver_info, new_first_boot_device,
+                                            onetime=True)
         mock__prepare_do_request.assert_called_once_with(
             self.oneview_client,
             body=expected_profile,
@@ -356,23 +386,18 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
-    @mock.patch.object(client.Client, 'get_boot_order', autospec=True)
     def test_get_server_profile_from_hardware(
-        self, mock_get_boot_order, mock_get_server_hardware,
-        mock__prepare_do_request
+        self, mock_get_server_hardware, mock__prepare_do_request
     ):
         driver_info = {}
-        new_first_boot_device = "any_boot_device"
-        mock_get_boot_order.return_value = []
         server_hardware = models.ServerHardware()
         setattr(server_hardware, 'server_profile_uri', None)
         mock_get_server_hardware.return_value = server_hardware
 
         self.assertRaises(
             exceptions.OneViewServerProfileAssociatedError,
-            self.oneview_client.set_boot_device,
-            driver_info,
-            new_first_boot_device
+            self.oneview_client.get_server_profile_from_hardware,
+            driver_info
         )
         setattr(
             server_hardware,
@@ -384,9 +409,8 @@ class OneViewClientTestCase(unittest.TestCase):
 
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
-            self.oneview_client.set_boot_device,
-            driver_info,
-            new_first_boot_device
+            self.oneview_client.get_server_profile_from_hardware,
+            driver_info
         )
 
     @mock.patch.object(requests, 'get')
