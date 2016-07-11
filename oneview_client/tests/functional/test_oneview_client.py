@@ -604,6 +604,14 @@ class OneViewClientV2TestCase(unittest.TestCase):
             verify=True
         )
 
+#     @mock.patch.object(requests, 'patch', autospec=True)
+#     def test_set_onetime_boot(self):
+#         oneview_client = client.ClientV2(self.manager_url,
+#                                          self.username,
+#                                          self.password)
+#         oneview_client.set_onetime_boot('1111-2222-3333',
+#                                         'Pxe')
+
 
 if __name__ == '__main__':
     unittest.main()
