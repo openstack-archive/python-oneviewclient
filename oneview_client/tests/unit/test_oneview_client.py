@@ -356,23 +356,18 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, '_prepare_and_do_request', autospec=True)
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
-    @mock.patch.object(client.Client, 'get_boot_order', autospec=True)
     def test_get_server_profile_from_hardware(
-        self, mock_get_boot_order, mock_get_server_hardware,
-        mock__prepare_do_request
+        self, mock_get_server_hardware, mock__prepare_do_request
     ):
         driver_info = {}
-        new_first_boot_device = "any_boot_device"
-        mock_get_boot_order.return_value = []
         server_hardware = models.ServerHardware()
         setattr(server_hardware, 'server_profile_uri', None)
         mock_get_server_hardware.return_value = server_hardware
 
         self.assertRaises(
             exceptions.OneViewServerProfileAssociatedError,
-            self.oneview_client.set_boot_device,
-            driver_info,
-            new_first_boot_device
+            self.oneview_client.get_server_profile_from_hardware,
+            driver_info
         )
         setattr(
             server_hardware,
@@ -384,9 +379,8 @@ class OneViewClientTestCase(unittest.TestCase):
 
         self.assertRaises(
             exceptions.OneViewResourceNotFoundError,
-            self.oneview_client.set_boot_device,
-            driver_info,
-            new_first_boot_device
+            self.oneview_client.get_server_profile_from_hardware,
+            driver_info
         )
 
     @mock.patch.object(requests, 'get')
