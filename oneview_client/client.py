@@ -21,10 +21,14 @@ import time
 import requests
 import retrying
 
+from oslo_log import log as logging
+
 from oneview_client import exceptions
 from oneview_client import ilo_utils
 from oneview_client import managers
 from oneview_client import states
+
+LOG = logging.getLogger(__name__)
 
 SUPPORTED_ONEVIEW_VERSION = 200
 
@@ -111,17 +115,22 @@ class BaseClient(object):
         return verify_status
 
     def verify_oneview_version(self):
-        if not self._is_oneview_version_compatible():
-            msg = ("The version of the OneView's API is unsupported. "
-                   "Supported version is '%s'" % SUPPORTED_ONEVIEW_VERSION)
+        msg = ("The version of the OneView's API is unsupported. "
+               "Supported version is '%s'" % SUPPORTED_ONEVIEW_VERSION)
+        if self._is_oneview_version_compatible():
+            LOG.warning(msg)
+        else:
             raise exceptions.IncompatibleOneViewAPIVersion(msg)
 
     def _is_oneview_version_compatible(self):
         versions = self.get_oneview_version()
         v = SUPPORTED_ONEVIEW_VERSION
-        min_version_compatible = versions.get("minimumVersion") <= v
-        max_version_compatible = versions.get("currentVersion") >= v
-        return min_version_compatible and max_version_compatible
+        if versions.get("currentVersion") > v:
+            return True
+        else:
+            min_version_compatible = versions.get("minimumVersion") <= v
+            max_version_compatible = versions.get("currentVersion") >= v
+            return min_version_compatible and max_version_compatible
 
     def get_oneview_version(self):
         url = '%s/rest/version' % self.manager_url
