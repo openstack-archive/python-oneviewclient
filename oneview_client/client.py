@@ -133,9 +133,13 @@ class BaseClient(object):
             versions = requests.get(
                 url, headers=headers, verify=verify_ssl
             ).json()
-            return versions
         except requests.RequestException as e:
             raise exceptions.OneViewConnectionError(e.message)
+        else:
+            if "GENERIC_HTTP_403" in versions.values():
+                msg = versions.get("details")
+                raise exceptions.OneViewNotAuthorizedException(msg)
+            return versions
 
     # --- Requests ---
     def _prepare_and_do_request(
