@@ -133,9 +133,12 @@ class BaseClient(object):
             versions = requests.get(
                 url, headers=headers, verify=verify_ssl
             ).json()
-            return versions
         except requests.RequestException as e:
             raise exceptions.OneViewConnectionError(e.message)
+        else:
+            if versions.get("minimumVersion") is None:
+                raise exceptions.OneViewNotAuthorizedException()
+            return versions
 
     # --- Requests ---
     def _prepare_and_do_request(
