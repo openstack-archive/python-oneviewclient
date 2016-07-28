@@ -41,7 +41,10 @@ class OneViewManager(object):
         pass
 
     def list(self, **kwargs):
-        resource_uri = self.uri_prefix
+        # NOTE(nicodemos) The OneView API documents that count=-1 should
+        # return everything but it is not, using an extremely large count
+        # instead.
+        resource_uri = self.uri_prefix + '?start=0&count=9999999'
         resource_json = self.oneview_client._prepare_and_do_request(
             uri=resource_uri
         )
@@ -114,7 +117,7 @@ class OneViewIndexManager(object):
         pass
 
     def list(self, **kwargs):
-        resource_uri = self.uri_index
+        resource_uri = self.uri_index + '&start=0&count=9999999'
         resource_json = self.oneview_client._prepare_and_do_request(
             uri=resource_uri
         )
