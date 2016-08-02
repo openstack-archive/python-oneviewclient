@@ -387,7 +387,8 @@ class OneViewClientTestCase(unittest.TestCase):
         oneview_client.set_boot_device(node_info, 'HardDisk', onetime=True)
         mock_patch.assert_called_once_with(
             'https://' + my_host + '/rest/v1/Systems/1',
-            data='{"Boot": {"BootSourceOverrideTarget": "Hdd"}}',
+            data='{"Boot": {"BootSourceOverrideTarget": "Hdd", ' +
+                 '"BootSourceOverrideEnabled": "Once"}}',
             headers={
                 'Content-Type': 'application/json',
                 'X-Auth-Token': key},
