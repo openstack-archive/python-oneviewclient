@@ -196,7 +196,9 @@ def set_onetime_boot(host_ip, x_auth_token, boot_target, allow_insecure=False):
             raise exceptions.IloException(
                 "ERROR: %s is not a supported boot option.\n" % boot_target)
         else:
-            body = {"Boot": {"BootSourceOverrideTarget": boot_target}}
+            body = {"Boot": {"BootSourceOverrideTarget": boot_target,
+                             "BootSourceOverrideEnabled": "Once"}
+                    }
             headers = {"Content-Type": "application/json"}
             status_code, _, response = rest_patch(host_ip, member_uri, headers,
                                                   body, x_auth_token,
