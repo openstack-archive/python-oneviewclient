@@ -15,6 +15,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import copy
+import json
 import mock
 import requests
 import six.moves.http_client as http_client
@@ -387,7 +389,8 @@ class OneViewClientTestCase(unittest.TestCase):
         oneview_client.set_boot_device(node_info, 'HardDisk', onetime=True)
         mock_patch.assert_called_once_with(
             'https://' + my_host + '/rest/v1/Systems/1',
-            data='{"Boot": {"BootSourceOverrideTarget": "Hdd"}}',
+            data=json.dumps({"Boot": {"BootSourceOverrideTarget": "Hdd",
+                                      "BootSourceOverrideEnabled": "Once"}}),
             headers={
                 'Content-Type': 'application/json',
                 'X-Auth-Token': key},
