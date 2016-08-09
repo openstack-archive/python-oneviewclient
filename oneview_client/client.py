@@ -130,13 +130,12 @@ class BaseClient(object):
 
         verify_ssl = self._get_verify_connection_option()
 
-        try:
-            versions = requests.get(
-                url, headers=headers, verify=verify_ssl
-            ).json()
-            return versions
-        except requests.RequestException as e:
-            raise exceptions.OneViewConnectionError(e.message)
+        response = requests.get(
+            url, headers=headers, verify=verify_ssl
+        )
+        _check_request_status(response)
+        versions = response.json()
+        return versions
 
     # --- Requests ---
     def _prepare_and_do_request(
@@ -698,8 +697,9 @@ def _check_request_status(response):
     repeat = False
     status = response.status_code
 
-    if status == 401:
-        raise exceptions.OneViewNotAuthorizedException()
+    if status in (401, 403):
+        error_code = response.json().get('errorCode')
+        raise exceptions.OneViewNotAuthorizedException(error_code)
     elif status == 404:
         raise exceptions.OneViewResourceNotFoundError()
     elif status in (408, 409,):

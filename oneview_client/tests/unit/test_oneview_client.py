@@ -940,7 +940,8 @@ class OneViewClientTestCase(unittest.TestCase):
         mock_get_oneview_version.assert_called_once_with()
 
     @mock.patch.object(client.Client, 'get_oneview_version')
-    def test_verify_oneview_version_fail(self, mock_get_oneview_version):
+    def test_verify_oneview_version_under_supported(self,
+                                                    mock_get_oneview_version):
         mock_get_oneview_version.return_value = {
             'minimumVersion': 120,
             'currentVersion': 120
@@ -948,6 +949,85 @@ class OneViewClientTestCase(unittest.TestCase):
         self.assertRaises(
             exceptions.IncompatibleOneViewAPIVersion,
             self.oneview_client.verify_oneview_version
+        )
+
+    @mock.patch.object(client.Client, 'get_oneview_version')
+    def test_verify_oneview_version_within_supported(
+        self,
+        mock_get_oneview_version
+    ):
+        mock_get_oneview_version.return_value = {
+            'minimumVersion': 120,
+            'currentVersion': 300
+        }
+        self.oneview_client.verify_oneview_version()
+        mock_get_oneview_version.assert_called_once_with()
+
+    @mock.patch.object(client.Client, 'get_oneview_version')
+    def test_verify_oneview_version_within_supported2(
+        self,
+        mock_get_oneview_version
+    ):
+        mock_get_oneview_version.return_value = {
+            'minimumVersion': 200,
+            'currentVersion': 300
+        }
+        self.oneview_client.verify_oneview_version()
+        mock_get_oneview_version.assert_called_once_with()
+
+    @mock.patch.object(client.Client, 'get_oneview_version')
+    def test_verify_oneview_version_over_supported(self,
+                                                   mock_get_oneview_version):
+        mock_get_oneview_version.return_value = {
+            'minimumVersion': 300,
+            'currentVersion': 400
+        }
+        self.assertRaises(
+            exceptions.IncompatibleOneViewAPIVersion,
+            self.oneview_client.verify_oneview_version
+        )
+
+    @mock.patch.object(client.Client, 'get_oneview_version')
+    def test_verify_oneview_version_not_authorized(self,
+                                                   mock_get_oneview_version):
+        mock_get_oneview_version.side_effect = [
+            exceptions.OneViewNotAuthorizedException
+        ]
+
+        self.assertRaises(
+            exceptions.OneViewNotAuthorizedException,
+            self.oneview_client.verify_oneview_version
+        )
+
+    @mock.patch.object(requests, 'get')
+    def test_get_oneview_version_forbidden_with_json(self, mock_get):
+        response = mock_get.return_value
+        response.status_code = http_client.FORBIDDEN
+        response.json.return_value = {
+            'errorSource': None,
+            'recommendedActions': [
+                'Check the request URI, then resend the request.'
+            ],
+            'nestedErrors': [],
+            'errorCode': 'GENERIC_HTTP_403',
+            'details': 'You are not allowed to access the requested resource.',
+            'message': 'Forbidden',
+            'data': {}
+        }
+        mock_get.return_value = response
+        self.assertRaises(
+            exceptions.OneViewNotAuthorizedException,
+            self.oneview_client.get_oneview_version
+        )
+
+    @mock.patch.object(requests, 'get')
+    def test_get_oneview_version_forbidden_without_json(self, mock_get):
+        response = mock_get.return_value
+        response.status_code = http_client.FORBIDDEN
+        mock_get.return_value = response
+        self.assertRaises(
+            exceptions.OneViewNotAuthorizedException,
+            self.oneview_client.get_oneview_version
         )
 
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware')
