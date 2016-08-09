@@ -15,6 +15,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import copy
 import mock
 import requests
 import six.moves.http_client as http_client
@@ -140,8 +141,9 @@ class OneViewClientTestCase(unittest.TestCase):
         )
         profile = mock.MagicMock()
         profile.status_code = http_client.OK
+        profile_fixture = copy.deepcopy(fixtures.SERVER_PROFILE_JSON)
         profile.json = mock.MagicMock(
-            return_value=fixtures.SERVER_PROFILE_JSON
+            return_value=profile_fixture
         )
         mock_get.side_effect = [hardware, profile]
 
@@ -179,8 +181,9 @@ class OneViewClientTestCase(unittest.TestCase):
         )
         profile = mock.MagicMock()
         profile.status_code = http_client.OK
+        profile_fixture = copy.deepcopy(fixtures.SERVER_PROFILE_JSON)
         profile.json = mock.MagicMock(
-            return_value=fixtures.SERVER_PROFILE_JSON
+            return_value=profile_fixture
         )
         mock_get.side_effect = [hardware, profile]
 
@@ -307,8 +310,9 @@ class OneViewClientTestCase(unittest.TestCase):
         )
         profile = mock.MagicMock()
         profile.status_code = http_client.OK
+        profile_fixture = copy.deepcopy(fixtures.SERVER_PROFILE_JSON)
         profile.json = mock.MagicMock(
-            return_value=fixtures.SERVER_PROFILE_JSON
+            return_value=profile_fixture
         )
         mock_get.side_effect = [hardware, profile, hardware, profile]
         oneview_client._wait_for_task_to_complete = mock__wait_for_task
@@ -320,7 +324,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
         oneview_client.set_boot_device(node_info, 'PXE')
         mock_put.assert_called_once_with(
-            self.manager_url + fixtures.SERVER_PROFILE_JSON.get('uri'),
+            self.manager_url + profile_fixture.get('uri'),
             data=mock.ANY,
             headers=mock.ANY,
             verify=True
@@ -347,8 +351,9 @@ class OneViewClientTestCase(unittest.TestCase):
         )
         profile = mock.MagicMock()
         profile.status_code = http_client.OK
+        profile_fixture = copy.deepcopy(fixtures.SERVER_PROFILE_JSON)
         profile.json = mock.MagicMock(
-            return_value=fixtures.SERVER_PROFILE_JSON
+            return_value=profile_fixture
         )
         ilo_system = mock.MagicMock()
         ilo_system.status_code = http_client.OK
@@ -651,8 +656,9 @@ class OneViewClientV2TestCase(unittest.TestCase):
                                          self.password)
         response = mock_get.return_value
         response.status_code = http_client.OK
+        profile_fixture = copy.deepcopy(fixtures.SERVER_PROFILE_JSON)
         response.json = mock.MagicMock(
-            return_value=fixtures.SERVER_PROFILE_JSON
+            return_value=profile_fixture
         )
         mock_get.return_value = response
 

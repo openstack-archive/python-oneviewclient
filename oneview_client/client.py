@@ -148,7 +148,7 @@ class BaseClient(object):
 
             headers = {
                 'content-type': 'application/json',
-                'X-Api-Version': SUPPORTED_ONEVIEW_VERSION,
+                'X-Api-Version': str(SUPPORTED_ONEVIEW_VERSION),
                 'Auth': self.session_id
             }
             url = '%s%s' % (self.manager_url, uri)

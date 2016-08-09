@@ -303,8 +303,9 @@ class OneViewClientTestCase(unittest.TestCase):
             models.ServerHardware.from_json(fixtures.SERVER_HARDWARE_JSON)
         )
         mock_get_server_hardware.return_value = server_hardware
+        profile = copy.deepcopy(fixtures.SERVER_PROFILE_JSON)
         mock_get_server_profile.return_value = (
-            models.ServerProfile.from_json(fixtures.SERVER_PROFILE_JSON)
+            models.ServerProfile.from_json(profile)
         )
         expected_profile = copy.deepcopy(fixtures.SERVER_PROFILE_JSON)
         expected_profile['boot'] = {
