@@ -43,7 +43,8 @@ class TestServerHardwareIndexManager(unittest.TestCase):
         index_manager = managers.ServerHardwareIndexManager(oneview_client)
         objects = index_manager.list()
         oneview_client._prepare_and_do_request.assert_called_once_with(
-            uri=managers.ServerHardwareIndexManager.uri_index
+            uri=managers.ServerHardwareIndexManager.uri_index + '&start=0'
+            '&count=9999999'
         )
         for obj in objects:
             self.assertIsInstance(obj, models.ServerHardware)

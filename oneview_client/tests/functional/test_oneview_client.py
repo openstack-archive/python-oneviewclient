@@ -424,7 +424,7 @@ class OneViewClientV2TestCase(unittest.TestCase):
 
         server_hardware_list = oneview_client.server_hardware.list()
         mock_get.assert_called_once_with(
-            url='https://1.2.3.4/rest/server-hardware/',
+            url='https://1.2.3.4/rest/server-hardware/?start=0&count=9999999',
             headers=mock.ANY,
             verify=True
         )
@@ -446,7 +446,7 @@ class OneViewClientV2TestCase(unittest.TestCase):
         server_hardware_list = oneview_client.server_hardware_index.list()
         mock_get.assert_called_once_with(
             url='https://1.2.3.4/rest/index/resources?' +
-                'category=server-hardware',
+                'category=server-hardware&start=0&count=9999999',
             headers=mock.ANY,
             verify=True
         )
@@ -563,7 +563,8 @@ class OneViewClientV2TestCase(unittest.TestCase):
             oneview_client.server_profile_template.list()
         )
         mock_get.assert_called_once_with(
-            url='https://1.2.3.4/rest/server-profile-templates/',
+            url='https://1.2.3.4/rest/server-profile-templates/'
+                '?start=0&count=9999999',
             headers=mock.ANY,
             verify=True
         )
@@ -642,7 +643,7 @@ class OneViewClientV2TestCase(unittest.TestCase):
 
         server_profile_list = oneview_client.server_profile.list()
         mock_get.assert_called_once_with(
-            url='https://1.2.3.4/rest/server-profiles/',
+            url='https://1.2.3.4/rest/server-profiles/?start=0&count=9999999',
             headers=mock.ANY,
             verify=True
         )
