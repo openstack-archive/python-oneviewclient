@@ -100,6 +100,26 @@ class BaseClient(object):
         else:
             return r
 
+    def _logout(self):
+        if self.manager_url in ("", None):
+            raise exceptions.OneViewConnectionError(
+                "Can't connect to OneView: 'manager_url' configuration"
+                "parameter is blank")
+
+        url = '%s/rest/login-sessions' % self.manager_url
+        headers = {
+            'X-Api-Version': str(SUPPORTED_ONEVIEW_VERSION),
+            'Auth': self.session_id
+        }
+
+        verify_ssl = self._get_verify_connection_option()
+
+        r = requests.delete(url,
+                            headers=headers,
+                            verify=verify_ssl)
+        if r.status_code == 400:
+            raise exceptions.OneViewNotAuthorizedException()
+
     def _get_verify_connection_option(self):
         verify_status = False
         user_cacert = self.tls_cacert_file
@@ -153,7 +173,12 @@ class BaseClient(object):
             }
             url = '%s%s' % (self.manager_url, uri)
             body = json.dumps(body)
-            response = self._do_request(url, headers, body, request_type)
+            try:
+                response = self._do_request(url, headers, body, request_type)
+            except exceptions.OneViewNotAuthorizedException:
+                self.session_id = self.get_session()
+                headers['Auth'] = self.session_id
+                response = self._do_request(url, headers, body, request_type)
 
             json_response = response.json()
         except requests.RequestException as e:
@@ -708,7 +733,7 @@ def _check_request_status(response):
     elif status == 500:
         raise exceptions.OneViewInternalServerError()
     # Any other unexpected status are logged
-    elif status not in (200, 202,):
+    elif status not in (200, 202):
         message = (
             "OneView appliance returned an unknown response status: %s"
             % status

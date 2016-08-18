@@ -110,6 +110,21 @@ class OneViewClientAuthTestCase(unittest.TestCase):
         oneview_client._authenticate = mock__authenticate
         self.assertEqual("XYZ", self.oneview_client.get_session())
 
+    @mock.patch.object(client.Client, '_authenticate', autospec=True)
+    @mock.patch.object(requests, 'delete', autospec=True)
+    def test__logout(self,
+                     mock_delete,
+                     mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        oneview_client._logout()
+        mock_delete.assert_called_once_with(
+            url='https://1.2.3.4/rest/login-sessions',
+            headers=mock.ANY,
+            verify=True
+        )
+
 
 class OneViewClientTestCase(unittest.TestCase):
 

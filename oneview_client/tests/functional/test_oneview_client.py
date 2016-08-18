@@ -30,6 +30,69 @@ from oneview_client.tests import fixtures
 from oneview_client import utils
 
 
+class OneViewClientAuthTestCase(unittest.TestCase):
+
+    def setUp(self):
+        super(OneViewClientAuthTestCase, self).setUp()
+        self.manager_url = 'https://1.2.3.4'
+        self.username = 'user'
+        self.password = 'password'
+
+    @mock.patch.object(requests, 'delete', autospec=True)
+    @mock.patch.object(requests, 'get', autospec=True)
+    @mock.patch.object(requests, 'post', autospec=True)
+    def test_re_login(self,
+                      mock_post,
+                      mock_get,
+                      mock_delete):
+        oneview_client = client.ClientV2(self.manager_url,
+                                         self.username,
+                                         self.password)
+        response = mock_post.return_value
+        response.json.return_value = {'sessionID': 'aaabbb'}
+        response.status_code = http_client.OK
+        mock_post.return_value = response
+
+        response1 = mock_get.return_value
+        response1.status_code = http_client.OK
+        response1.json = mock.MagicMock(
+            return_value=fixtures.SERVER_HARDWARE_LIST_JSON
+        )
+        mock_get.return_value = response1
+
+        sh_uuid = oneview_client.server_hardware.list()[0].uuid
+        assert sh_uuid
+        oneview_client._logout()
+        mock_post.reset_mock()
+
+        response2 = mock.Mock(status_code=http_client.UNAUTHORIZED)
+        response3 = mock.Mock(status_code=http_client.OK)
+        mock_get.side_effect = [response2, response3]
+
+        oneview_client.server_hardware.get(sh_uuid)
+        mock_post.assert_called_once_with(
+            'https://1.2.3.4/rest/login-sessions',
+            data=json.dumps({"userName": "user", "password": "password"}),
+            headers={'content-type': 'application/json'},
+            verify=True
+        )
+
+    @mock.patch.object(client.Client, '_authenticate', autospec=True)
+    @mock.patch.object(requests, 'delete', autospec=True)
+    def test__logout(self,
+                     mock_delete,
+                     mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+        oneview_client._logout()
+        mock_delete.assert_called_once_with(
+            url='https://1.2.3.4/rest/login-sessions',
+            headers=mock.ANY,
+            verify=True
+        )
+
+
 @mock.patch.object(client.Client, '_authenticate', autospec=True)
 class OneViewClientTestCase(unittest.TestCase):
 
