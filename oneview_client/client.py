@@ -172,7 +172,7 @@ class BaseClient(object):
         response = requests.get(
             url, headers=headers, verify=verify_ssl
         )
-        self._check_request_status(response)
+        self._check_request_status(response, url)
         versions = response.json()
         return versions
 
@@ -214,7 +214,7 @@ class BaseClient(object):
         @retrying.retry(
             stop_max_attempt_number=self.max_polling_attempts,
             retry_on_result=lambda response: self._check_request_status(
-                response
+                response, url
             ),
             wait_fixed=WAIT_DO_REQUEST_IN_MILLISECONDS
         )
@@ -310,7 +310,7 @@ class BaseClient(object):
         finally:
             ilo_utils.ilo_logout(host_ip, ilo_token)
 
-    def _check_request_status(self, response):
+    def _check_request_status(self, response, url):
         repeat = False
         status = response.status_code
 
@@ -318,7 +318,7 @@ class BaseClient(object):
             error_code = response.json().get('errorCode')
             raise exceptions.OneViewNotAuthorizedException(error_code)
         elif status == 404:
-            raise exceptions.OneViewResourceNotFoundError()
+            raise exceptions.OneViewResourceNotFoundError(url)
         elif status in (408, 409,):
             time.sleep(10)
             repeat = True
