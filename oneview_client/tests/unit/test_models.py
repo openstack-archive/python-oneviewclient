@@ -163,6 +163,7 @@ class Test(unittest.TestCase):
             'enclosureGroupUri': 'enclosure_group_uri',
             'boot': 'boot',
             'connections': 'connections',
+            'macType': 'mac_type',
         }
         self.assertEqual(spt.attribute_map, spt_attribute_map)
         self.assertEqual(spt.uri, 'http://something.com/1111-2222-3333-4444')

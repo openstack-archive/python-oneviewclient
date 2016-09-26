@@ -784,6 +784,39 @@ class OneViewClientV2TestCase(unittest.TestCase):
             verify=True
         )
 
+    @mock.patch.object(requests, "post", autospec=True)
+    @mock.patch.object(requests, 'get', autospec=True)
+    def test_validate_server_profile_template_mac_type(self, mock_get,
+                                                       mock_post,
+                                                       mock__authenticate):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        server_profile_template_physical_mac = copy.deepcopy(
+            fixtures.SERVER_PROFILE_TEMPLATE_JSON
+        )
+
+        response = mock_get.return_value
+        response.status_code = http_client.OK
+        response.json = mock.MagicMock(
+            return_value=server_profile_template_physical_mac
+        )
+        mock_get.return_value = response
+
+        spt_uuid = utils.get_uuid_from_uri(
+            server_profile_template_physical_mac.get("uri")
+        )
+
+        self.assertRaises(
+            exceptions.OneViewInconsistentResource,
+            oneview_client.validate_server_profile_template_mac_type,
+            spt_uuid
+        )
+
+        server_profile_template_physical_mac["macType"] = "Physical"
+        oneview_client.validate_server_profile_template_mac_type(spt_uuid)
+
 
 if __name__ == '__main__':
     unittest.main()
