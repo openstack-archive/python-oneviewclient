@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-#
 # (c) Copyright 2015 Hewlett Packard Enterprise Development LP
 # Copyright 2015 Universidade Federal de Campina Grande
 #
@@ -16,7 +14,6 @@
 #    limitations under the License.
 
 import json
-
 
 SERVER_HARDWARE_JSON = {
     "type": "server-hardware-1",
@@ -6705,3 +6702,17 @@ PROPERTIES_DICT = {"cpu_arch": "x86_64",
 
 DRIVER_INFO_DICT = {'server_hardware_uri': 'fake_sh_uri',
                     'server_profile_template_uri': 'fake_spt_uri'}
+
+
+class TestablePort(object):
+
+    def __init__(
+        self, obj_address, bootable=False, pxe_enabled=False, sh_id=''
+    ):
+        self.address = obj_address
+        self.local_link_connection = {
+            'switch_info': {'bootable': str(bootable),
+                            'server_hardware_id': sh_id}
+        }
+        self.pxe_enabled = pxe_enabled
+        self.uuid = 'port-uuid'
