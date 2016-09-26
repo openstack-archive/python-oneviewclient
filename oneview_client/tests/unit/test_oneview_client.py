@@ -969,6 +969,31 @@ class OneViewClientTestCase(unittest.TestCase):
             server_profile_template_uuid
         )
 
+    @mock.patch.object(client.Client, 'get_server_profile_template_by_uuid',
+                       autospec=True)
+    def test_validate_server_profile_template_mac_type(self,
+                                                       server_template_mock):
+        uuid = 123
+
+        # Negative case
+        profile_template_mock = models.ServerProfileTemplate()
+        setattr(profile_template_mock, "macType", "Virtual")
+        setattr(profile_template_mock, "uri",
+                "/rest/server-profile-templates/%s" % uuid)
+
+        server_template_mock.return_value = profile_template_mock
+        self.assertRaises(
+            exceptions.OneViewInconsistentResource,
+            self.oneview_client.validate_server_profile_template_mac_type,
+            uuid)
+
+        # Positive case
+        setattr(profile_template_mock, "macType", "Physical")
+        try:
+            self.oneview_client.validate_server_profile_template_mac_type(uuid)
+        except exceptions.OneViewInconsistentResource:
+            self.assertTrue(False)
+
     @mock.patch.object(client.Client, 'get_oneview_version')
     def test_verify_oneview_version(self, mock_get_oneview_version):
         mock_get_oneview_version.return_value = {
