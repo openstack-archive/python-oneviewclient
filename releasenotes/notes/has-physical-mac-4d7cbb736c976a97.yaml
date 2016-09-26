@@ -1,0 +1,4 @@
+---
+fixes:
+  - Creates a method has_physical_mac within oneview_client.client
+    and added the attribute `macType` to the ServerProfileTemplate model.

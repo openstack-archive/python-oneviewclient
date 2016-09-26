@@ -106,6 +106,7 @@ class ServerProfileTemplate(OneViewObject):
         'enclosureGroupUri': 'enclosure_group_uri',
         'connections': 'connections',
         'boot': 'boot',
+        'macType': 'macType',
     }
 
 
