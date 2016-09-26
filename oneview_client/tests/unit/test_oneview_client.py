@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-#
 # (c) Copyright 2015 Hewlett Packard Enterprise Development LP
 # Copyright 2015 Universidade Federal de Campina Grande
 #
@@ -29,13 +27,7 @@ from oneview_client import exceptions
 from oneview_client import models
 from oneview_client import states
 from oneview_client.tests import fixtures
-
-
-class TestablePort(object):
-
-    def __init__(self, obj_address):
-        self.obj_address = obj_address
-        self._obj_address = obj_address
+from oneview_client import utils
 
 
 class OneViewClientAuthTestCase(unittest.TestCase):
@@ -542,6 +534,73 @@ class OneViewClientTestCase(unittest.TestCase):
         )
         self.assertEqual(mock_get.call_count, 2)
 
+    def test__validate_node_and_port_server_hardware_uri_without_ports(self):
+        driver_info = {"server_hardware_uri": "/rest/server-hardware/uri"}
+        self.oneview_client._validate_node_and_port_server_hardware_uri(
+            driver_info, []
+        )
+
+    def test__validate_node_and_port_server_hardware_uri(self):
+        sh_id = 'sh-id'
+        driver_info = {"server_hardware_uri": sh_id}
+        port1 = fixtures.TestablePort('AA:BB:CC:DD:EE:FA', sh_id=sh_id)
+        ports = [port1]
+        self.oneview_client._validate_node_and_port_server_hardware_uri(
+            driver_info, ports
+        )
+
+    def test__dont_validate_node_and_port_server_hardware_uri(self):
+        sh_id = 'sh-id'
+        wrong_sh_id = 'wrong-id'
+        driver_info = {"server_hardware_uri": sh_id}
+        port1 = fixtures.TestablePort('AA:BB:CC:DD:EE:FA', sh_id=sh_id)
+        port2 = fixtures.TestablePort('AA:BB:CC:DD:EE:FA', sh_id=wrong_sh_id)
+        ports = [port1, port2]
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_node_and_port_server_hardware_uri(
+                driver_info, ports
+            )
+
+    @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
+    @mock.patch.object(utils, 'get_all_macs', autospec=True)
+    def test__validate_connection_mac(
+        self, mock_get_macs, mock_get_server_hardware
+    ):
+        sh_id = 'sh-id'
+        sh_uri = "/rest/server-hardware/" + sh_id
+        port1 = fixtures.TestablePort('AA:BB:CC:DD:EE:FA', sh_id=sh_id)
+        ports = [port1]
+
+        driver_info = {"server_hardware_uri": sh_uri}
+
+        server_hardware_mock = models.ServerHardware()
+        setattr(server_hardware_mock, "uri", "uri")
+        mock_get_server_hardware.return_value = server_hardware_mock
+        mock_get_macs.return_value = {'aa:bb:cc:dd:ee:fa'}
+
+        self.oneview_client._validate_connection_mac(driver_info, ports)
+
+    @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
+    @mock.patch.object(utils, 'get_all_macs', autospec=True)
+    def test__dont_validate_connection_mac(
+        self, mock_get_macs, mock_get_server_hardware
+    ):
+        sh_id = 'sh-id'
+        sh_uri = "/rest/server-hardware/" + sh_id
+        port1 = fixtures.TestablePort('AA:BB:CC:DD:EE:FA', sh_id=sh_id)
+        port2 = fixtures.TestablePort('AA:BB:CC:DD:EE:FB', sh_id=sh_id)
+        ports = [port1, port2]
+
+        driver_info = {"server_hardware_uri": sh_uri}
+
+        server_hardware_mock = models.ServerHardware()
+        setattr(server_hardware_mock, "uri", "uri")
+        mock_get_server_hardware.return_value = server_hardware_mock
+        mock_get_macs.return_value = {'aa:bb:cc:dd:ee:fb'}
+
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_connection_mac(driver_info, ports)
+
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_hardware_inconsistent_memorymb_value(
         self, mock_get_server_hardware
@@ -668,9 +727,9 @@ class OneViewClientTestCase(unittest.TestCase):
         mock_server_hardware.return_value = server_hardware_mock
         mock_server_hardware_by_uuid.return_value = server_hardware_mock
 
-        self.oneview_client.is_node_port_mac_compatible_with_server_hardware(
+        self.oneview_client._is_node_port_mac_compatible_with_server_hardware(
             {},
-            [type('obj', (object,), {'_address': 'D8:9D:67:73:54:00'})]
+            [type('obj', (object,), {'address': 'D8:9D:67:73:54:00'})]
         )
 
         mock_server_hardware.assert_called_once_with(self.oneview_client, {})
@@ -702,9 +761,9 @@ class OneViewClientTestCase(unittest.TestCase):
             exceptions.OneViewInconsistentResource,
             exc_expected_msg,
             self.oneview_client
-            .is_node_port_mac_compatible_with_server_hardware,
+            ._is_node_port_mac_compatible_with_server_hardware,
             {},
-            [type('obj', (object,), {'_address': 'AA:BB:CC:DD:EE:FF'})]
+            [type('obj', (object,), {'address': 'AA:BB:CC:DD:EE:FF'})]
         )
 
     @mock.patch.object(client.Client, 'get_server_profile_from_hardware',
@@ -886,35 +945,38 @@ class OneViewClientTestCase(unittest.TestCase):
             server_profile_template
         )
 
-    @mock.patch.object(client.Client, 'get_server_profile_template_by_uuid',
+    @mock.patch.object(client.Client, 'get_server_profile_template',
                        autospec=True)
     def test_validate_server_profile_template_mac_type(
             self, server_template_mock):
-        uuid = 123
-
         profile_template_mock = models.ServerProfileTemplate()
         setattr(profile_template_mock, "mac_type", "Physical")
+        setattr(profile_template_mock, "uri",
+                "/rest/server-profile-templates/%s" % '111-222-333')
+
+        oneview_info = {'server_profile_template_uri': '/rest/111-222-333'}
 
         server_template_mock.return_value = profile_template_mock
-        self.oneview_client.validate_server_profile_template_mac_type(uuid)
+        self.oneview_client._validate_server_profile_template_mac_type(
+            oneview_info
+        )
 
-    @mock.patch.object(client.Client, 'get_server_profile_template_by_uuid',
+    @mock.patch.object(client.Client, 'get_server_profile_template',
                        autospec=True)
     def test_validate_server_profile_template_mac_type_negative(
             self, server_template_mock):
-        uuid = 123
-
-        # Negative case
         profile_template_mock = models.ServerProfileTemplate()
         setattr(profile_template_mock, "mac_type", "Virtual")
         setattr(profile_template_mock, "uri",
-                "/rest/server-profile-templates/%s" % uuid)
+                "/rest/server-profile-templates/%s" % '123')
+        oneview_info = {'server_profile_template_uri': '/rest/123'}
 
         server_template_mock.return_value = profile_template_mock
         self.assertRaises(
             exceptions.OneViewInconsistentResource,
-            self.oneview_client.validate_server_profile_template_mac_type,
-            uuid)
+            self.oneview_client._validate_server_profile_template_mac_type,
+            oneview_info
+        )
 
     @mock.patch.object(client.Client, 'get_oneview_version')
     def test_verify_oneview_version(self, mock_get_oneview_version):
@@ -1030,7 +1092,7 @@ class OneViewClientTestCase(unittest.TestCase):
         mock_get_server_profile_from_hardware.return_value = \
             server_profile_mock
 
-        port = TestablePort('AA:BB:CC:DD:EE:FF')
+        port = fixtures.TestablePort('AA:BB:CC:DD:EE:FF')
         node_info = None
         ports = [port]
         self.oneview_client.is_node_port_mac_compatible_with_server_profile(
@@ -1100,7 +1162,7 @@ class OneViewClientTestCase(unittest.TestCase):
         mock_get_sh_mac_from_ilo.return_value = 'aa:bb:cc:dd:ee'
 
         node_info = {'server_hardware_uri': '/rest/111-222-333'}
-        ports = [TestablePort('aa:bb:cc:dd:ee')]
+        ports = [fixtures.TestablePort('aa:bb:cc:dd:ee')]
         self.oneview_client.is_node_port_mac_compatible_with_server_profile(
             node_info,
             ports
@@ -1322,6 +1384,3 @@ class OneViewClientTestCase(unittest.TestCase):
 
         self.assertTrue(mock__prepare_do_request.called)
         self.assertTrue(mock__wait_for_task.called)
-
-if __name__ == '__main__':
-    unittest.main()
