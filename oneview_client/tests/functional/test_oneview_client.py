@@ -581,7 +581,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
         self.assertRaises(
             exceptions.OneViewInconsistentResource,
-            oneview_client.validate_server_profile_template_mac_type,
+            oneview_client._validate_server_profile_template_mac_type,
             spt_uuid
         )
 
@@ -607,7 +607,7 @@ class OneViewClientTestCase(unittest.TestCase):
             server_profile_template_physical_mac.get("uri")
         )
 
-        oneview_client.validate_server_profile_template_mac_type(spt_uuid)
+        oneview_client._validate_server_profile_template_mac_type(spt_uuid)
 
 
 @mock.patch.object(client.ClientV2, '_authenticate', autospec=True)
