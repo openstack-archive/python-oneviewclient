@@ -82,6 +82,16 @@ class ServerHardware(OneViewObject):
         'mpHostInfo': 'mp_host_info',
     }
 
+    def get_macs(self):
+        macs = []
+        device_slots = self.port_map.get('deviceSlots')
+        for device_slot in device_slots:
+            for physical_port in device_slot.get('physicalPorts'):
+                macs.append(physical_port.get('mac').lower())
+                for virtual_port in physical_port.get('virtualPorts'):
+                    macs.append(virtual_port.get('mac').lower())
+        return set(macs)
+
     def get_mac(self, nic_index=0):
         if self.port_map:
             device = self.port_map.get('deviceSlots')[0]
