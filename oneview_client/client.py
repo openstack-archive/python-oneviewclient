@@ -611,6 +611,84 @@ class Client(BaseClient):
 
     # ---- Node Validate ----
     @auditing.audit
+    def validate_connections(self, oneview_info, ports, network_interface):
+        if network_interface != 'neutron':
+            self._is_node_port_mac_compatible_with_server_hardware(
+                oneview_info, ports)
+            self._validate_server_profile_template_mac_type(oneview_info)
+        elif oneview_info.get('use_oneview_ml2_driver'):
+            valid_ports = utils.get_oneview_connection_ports(ports)
+            self._validate_node_and_port_server_hardware_uri(
+                oneview_info, valid_ports)
+            self._validate_connection_mac(oneview_info, valid_ports)
+
+    @auditing.audit
+    def _is_node_port_mac_compatible_with_server_hardware(
+            self, node_info, ports
+    ):
+        server_hardware = self.get_server_hardware(node_info)
+        try:
+            mac = server_hardware.get_mac(nic_index=0)
+        except exceptions.OneViewException:
+            mac = self.get_sh_mac_from_ilo(server_hardware.uuid, nic_index=0)
+
+        for port in ports:
+            if port.address.lower() == mac:
+                return
+
+        message = (
+            "The ports of the node are not compatible with its "
+            "server hardware %(server_hardware_uri)s." %
+            {'server_hardware_uri': server_hardware.uri}
+        )
+        raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def _validate_server_profile_template_mac_type(self, oneview_info):
+        server_profile_template = self.get_server_profile_template(
+            oneview_info
+        )
+        if server_profile_template.mac_type != 'Physical':
+            message = (
+                "The server profile template %s is not set to use "
+                "physical MAC." % server_profile_template.uri
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def _validate_node_and_port_server_hardware_uri(self, oneview_info, ports):
+        node_hardware_id = utils.get_uuid_from_uri(
+            oneview_info.get('server_hardware_uri')
+        )
+        for port in ports:
+            port_hardware_id = port.local_link_connection.get(
+                'switch_info').get('server_hardware_id')
+            if port_hardware_id.lower() != node_hardware_id.lower():
+                raise exceptions.OneViewInconsistentResource(
+                    "The Server Hardware ID of the port %(port_id)s "
+                    "doesn't match the Server Hardware ID %(server_hardware)s "
+                    "of the node." % {
+                        'port_id': port.uuid,
+                        'server_hardware': node_hardware_id
+                    }
+                )
+
+    @auditing.audit
+    def _validate_connection_mac(self, oneview_info, ports):
+        server_hardware = self.get_server_hardware(oneview_info)
+        for port in ports:
+            if port.address.lower() not in utils.get_all_macs(server_hardware):
+                raise exceptions.OneViewInconsistentResource(
+                    "The MAC address %(mac)s of the port %(port_id)s doesn't"
+                    " have a corresponding MAC address in the Server Hardware"
+                    " %(server_hardware_uri)s" % {
+                        'mac': port.address,
+                        'port_id': port.uuid,
+                        'server_hardware_uri': server_hardware.uri
+                    }
+                )
+
+    @auditing.audit
     def validate_node_server_hardware(
             self, node_info, node_memorymb, node_cpus
     ):
@@ -697,48 +775,16 @@ class Client(BaseClient):
             server_hardware = self.get_server_hardware(node_info)
             mac = self.get_sh_mac_from_ilo(server_hardware.uuid, nic_index=0)
 
-        is_mac_address_compatible = True
         for port in ports:
-            port_address = port.__dict__.get('_obj_address')
-            if port_address is None:
-                port_address = port.__dict__.get('_address')
-            if port_address.lower() != mac.lower():
-                is_mac_address_compatible = False
+            if port.address.lower() == mac.lower():
+                return
 
-        if (not is_mac_address_compatible) or len(ports) == 0:
-            message = (
-                "The ports of the node are not compatible with its"
-                " server profile %(server_profile_uri)s." %
-                {'server_profile_uri': server_profile.uri}
-            )
-            raise exceptions.OneViewInconsistentResource(message)
-
-    @auditing.audit
-    def is_node_port_mac_compatible_with_server_hardware(
-            self, node_info, ports
-    ):
-        server_hardware = self.get_server_hardware(node_info)
-        try:
-            mac = server_hardware.get_mac(nic_index=0)
-        except exceptions.OneViewException:
-            mac = self.get_sh_mac_from_ilo(server_hardware.uuid, nic_index=0)
-
-        is_mac_address_compatible = True
-        for port in ports:
-            port_address = port.__dict__.get('_obj_address')
-            if port_address is None:
-                port_address = port.__dict__.get('_address')
-
-            if port_address.lower() != mac:
-                is_mac_address_compatible = False
-
-        if (not is_mac_address_compatible) or len(ports) == 0:
-            message = (
-                "The ports of the node are not compatible with its"
-                " server hardware %(server_hardware_uri)s." %
-                {'server_hardware_uri': server_hardware.uri}
-            )
-            raise exceptions.OneViewInconsistentResource(message)
+        message = (
+            "The ports of the node are not compatible with its"
+            " server profile %(server_profile_uri)s." %
+            {'server_profile_uri': server_profile.uri}
+        )
+        raise exceptions.OneViewInconsistentResource(message)
 
     @auditing.audit
     def validate_node_server_profile_template(self, node_info):
@@ -813,16 +859,3 @@ class Client(BaseClient):
             " template %s." % server_profile_template.uri
         )
         raise exceptions.OneViewInconsistentResource(message)
-
-    @auditing.audit
-    def validate_server_profile_template_mac_type(self, uuid):
-        server_profile_template = self.get_server_profile_template_by_uuid(
-            uuid
-        )
-
-        if server_profile_template.mac_type != 'Physical':
-            message = (
-                "The server profile template %s is not set to use"
-                " physical MAC." % server_profile_template.uri
-            )
-            raise exceptions.OneViewInconsistentResource(message)
