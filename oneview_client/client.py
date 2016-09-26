@@ -609,6 +609,108 @@ class Client(BaseClient):
 
     # ---- Node Validate ----
     @auditing.audit
+    def _get_switch_info_from_port(self, port):
+        local_link_connection = port.local_link_connection
+        if not local_link_connection:
+            raise exceptions.OneViewInconsistentResource(
+                "There must exist a local link connection information on "
+                "port for the node."
+            )
+        switch_info = local_link_connection.get('switch_info')
+        if not switch_info:
+            raise exceptions.OneViewInconsistentResource(
+                "There must exist a switch_info on local link connection "
+                "information."
+            )
+        try:
+            switch_info = json.loads(switch_info.replace("'", '"'))
+        except Exception:
+            raise exceptions.OneViewInconsistentResource(
+                "The switch_info information on port is not in a valid "
+                "format."
+            )
+        return switch_info
+
+    @auditing.audit
+    def _get_bootable_ports(self, ports, bootable):
+        bootable_ports = []
+        for port in ports:
+            switch_info = self._get_switch_info_from_port(port)
+            if switch_info.get('bootable').lower() == str(bootable).lower():
+                bootable_ports.append(port)
+        return bootable_ports
+
+    @auditing.audit
+    def _get_pxe_enabled_ports(self, ports):
+        return [port for port in ports if port.pxe_enabled]
+
+    @auditing.audit
+    def _validate_bootable_connections(self, ports):
+        number_bootable_ports = len(self._get_bootable_ports(ports, True))
+        if number_bootable_ports not in (1, 2):
+            raise exceptions.OneViewInconsistentResource(
+                "There must exist either one or two bootable ports for the "
+                "node. There is %d ports." % (number_bootable_ports)
+            )
+
+    @auditing.audit
+    def _validate_pxe_enabled_bootable_connections(self, ports):
+        bootable_ports = self._get_bootable_ports(ports, True)
+        pxe_enabled_ports = self._get_pxe_enabled_ports(bootable_ports)
+        if not pxe_enabled_ports:
+            raise exceptions.OneViewInconsistentResource(
+                "There must exist some bootable port whose pxe_enabled = True"
+            )
+
+    @auditing.audit
+    def _validate_pxe_disabled_not_bootable_connections(self, ports):
+        not_bootable_ports = self._get_bootable_ports(ports, False)
+        pxe_enabled_ports = self._get_pxe_enabled_ports(not_bootable_ports)
+        if pxe_enabled_ports:
+            raise exceptions.OneViewInconsistentResource(
+                "There cannot exist not bootable port whose pxe_enabled = True"
+            )
+
+    @auditing.audit
+    def _validate_node_and_port_server_hardware_uri(self, node_info, ports):
+        node_server_hardware_uri = node_info.get('server_hardware_uri')
+        for port in ports:
+            switch_info = self._get_switch_info_from_port(port)
+            port_sh_uri = switch_info.get('server_hardware_uuid')
+            if port_sh_uri.lower() != node_server_hardware_uri.lower():
+                raise exceptions.OneViewInconsistentResource(
+                    "The Server Hardware URI of the port %(port_id)s"
+                    " must match the Server Hardware URI of the node"
+                    " %(node_id)s" % {
+                        'port_id': port.uuid,
+                        'node_id': node_info.get('uuid')
+                    }
+                )
+
+    @auditing.audit
+    def _validate_connection_mac(self, node_info, ports):
+        server_hardware = self.get_server_hardware(node_info)
+        for port in ports:
+            if port.address.lower() not in server_hardware.get_macs():
+                raise exceptions.OneViewInconsistentResource(
+                    "The MAC address %(mac)s of the port %(port_id)s doesn't"
+                    " have a corresponding MAC address in the Server Hardware"
+                    " %(server_hardware_uri)s" % {
+                        'mac': port.address,
+                        'port_id': port.uuid,
+                        'server_hardware_uri': server_hardware.uri
+                    }
+                )
+
+    @auditing.audit
+    def validate_connections(self, node_info, ports):
+        self._validate_bootable_connections(ports)
+        self._validate_pxe_enabled_bootable_connections(ports)
+        self._validate_pxe_disabled_not_bootable_connections(ports)
+        self._validate_node_and_port_server_hardware_uri(node_info, ports)
+        self._validate_connection_mac(node_info, ports)
+
+    @auditing.audit
     def validate_node_server_hardware(
         self, node_info, node_memorymb, node_cpus
     ):
