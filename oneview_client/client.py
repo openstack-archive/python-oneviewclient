@@ -48,12 +48,11 @@ SERVER_PROFILE_PREFIX_URI = '/rest/server-profiles/'
 
 @six.add_metaclass(abc.ABCMeta)
 class BaseClient(object):
-
     def __init__(
-        self, manager_url, username, password,
-        allow_insecure_connections=False, tls_cacert_file='',
-        max_polling_attempts=20, audit_enabled=False,
-        audit_map_file='', audit_output_file=''
+            self, manager_url, username, password,
+            allow_insecure_connections=False, tls_cacert_file='',
+            max_polling_attempts=20, audit_enabled=False,
+            audit_map_file='', audit_output_file=''
     ):
         self.manager_url = manager_url
         self.username = username
@@ -178,7 +177,7 @@ class BaseClient(object):
 
     # --- Requests ---
     def _prepare_and_do_request(
-        self, uri, body={}, request_type=GET_REQUEST_TYPE
+            self, uri, body={}, request_type=GET_REQUEST_TYPE
     ):
         json_response = {}
         try:
@@ -237,6 +236,7 @@ class BaseClient(object):
                     url, headers=headers, verify=verify_status
                 )
             return response
+
         return request(url, headers, body, request_type)
 
     @auditing.audit
@@ -263,6 +263,7 @@ class BaseClient(object):
                 raise exceptions.OneViewTaskError("The task '%s' returned an "
                                                   "error state" % uri)
             return task
+
         return wait(task)
 
     @auditing.audit
@@ -335,12 +336,11 @@ class BaseClient(object):
 
 
 class ClientV2(BaseClient):
-
     def __init__(
-        self, manager_url, username, password,
-        allow_insecure_connections=False, tls_cacert_file='',
-        max_polling_attempts=20, audit_enabled=False,
-        audit_map_file='', audit_output_file=''
+            self, manager_url, username, password,
+            allow_insecure_connections=False, tls_cacert_file='',
+            max_polling_attempts=20, audit_enabled=False,
+            audit_map_file='', audit_output_file=''
     ):
         super(ClientV2, self).__init__(manager_url, username, password,
                                        allow_insecure_connections,
@@ -361,12 +361,11 @@ class ClientV2(BaseClient):
 
 
 class Client(BaseClient):
-
     def __init__(
-        self, manager_url, username, password,
-        allow_insecure_connections=False, tls_cacert_file='',
-        max_polling_attempts=20, audit_enabled=False,
-        audit_map_file='', audit_output_file=''
+            self, manager_url, username, password,
+            allow_insecure_connections=False, tls_cacert_file='',
+            max_polling_attempts=20, audit_enabled=False,
+            audit_map_file='', audit_output_file=''
     ):
         super(Client, self).__init__(manager_url, username, password,
                                      allow_insecure_connections,
@@ -406,7 +405,7 @@ class Client(BaseClient):
 
     @auditing.audit
     def set_node_power_state(
-        self, node_info, state, press_type=MOMENTARY_PRESS
+            self, node_info, state, press_type=MOMENTARY_PRESS
     ):
         body = {'powerState': state, 'powerControl': press_type}
         power_state_uri = (node_info.get('server_hardware_uri') +
@@ -610,7 +609,7 @@ class Client(BaseClient):
     # ---- Node Validate ----
     @auditing.audit
     def validate_node_server_hardware(
-        self, node_info, node_memorymb, node_cpus
+            self, node_info, node_memorymb, node_cpus
     ):
         node_sh_uri = node_info.get('server_hardware_uri')
         server_hardware = self.get_server_hardware(node_info)
@@ -673,7 +672,7 @@ class Client(BaseClient):
 
     @auditing.audit
     def is_node_port_mac_compatible_with_server_profile(
-        self, node_info, ports
+            self, node_info, ports
     ):
         server_profile = self.get_server_profile_from_hardware(
             node_info
@@ -685,7 +684,7 @@ class Client(BaseClient):
             for connection in server_profile.connections:
                 boot = connection.get('boot')
                 if (boot is not None and
-                   boot.get('priority').lower() == 'primary'):
+                        boot.get('priority').lower() == 'primary'):
                     primary_boot_connection = connection
 
             if primary_boot_connection is None:
@@ -722,7 +721,7 @@ class Client(BaseClient):
 
     @auditing.audit
     def is_node_port_mac_compatible_with_server_hardware(
-        self, node_info, ports
+            self, node_info, ports
     ):
         server_hardware = self.get_server_hardware(node_info)
         try:
@@ -794,3 +793,16 @@ class Client(BaseClient):
             " template %s." % server_profile_template.uri
         )
         raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def validate_server_profile_template_mac_type(self, uuid):
+        server_profile_template = self.get_server_profile_template_by_uuid(
+            uuid
+        )
+
+        if server_profile_template.mac_type != 'Physical':
+            message = (
+                "The server profile template %s is not set to use"
+                " physical MAC." % server_profile_template.uri
+            )
+            raise exceptions.OneViewInconsistentResource(message)
