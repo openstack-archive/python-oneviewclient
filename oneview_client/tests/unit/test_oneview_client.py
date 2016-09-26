@@ -33,9 +33,18 @@ from oneview_client.tests import fixtures
 
 class TestablePort(object):
 
-    def __init__(self, obj_address):
+    def __init__(
+        self, obj_address, bootable=False, pxe_enabled=False, sh_id=''
+    ):
+        self.address = obj_address
         self.obj_address = obj_address
         self._obj_address = obj_address
+        self.local_link_connection = {
+            'switch_info': "{'bootable': '" + str(bootable) + "',"
+                           "'server_hardware_id': '" + sh_id + "'}"
+        }
+        self.pxe_enabled = pxe_enabled
+        self.uuid = 'port-uuid'
 
 
 class OneViewClientAuthTestCase(unittest.TestCase):
@@ -541,6 +550,222 @@ class OneViewClientTestCase(unittest.TestCase):
             task,
         )
         self.assertEqual(mock_get.call_count, 2)
+
+    def test__get_empty_bootable_ports(self):
+        port = TestablePort('AA:BB:CC:DD:EE:FF', bootable=False)
+        ports = [port]
+        self.assertEqual(
+            [], self.oneview_client._get_bootable_ports(ports, True)
+        )
+
+    def test__get_empty_not_bootable_ports(self):
+        port = TestablePort('AA:BB:CC:DD:EE:FF', bootable=True)
+        ports = [port]
+        self.assertEqual(
+            [], self.oneview_client._get_bootable_ports(ports, False)
+        )
+
+    def test__get_multiple_bootable_ports(self):
+        port1 = TestablePort('AA:BB:CC:DD:EE:FA', bootable=True)
+        port2 = TestablePort('AA:BB:CC:DD:EE:FB', bootable=False)
+        port3 = TestablePort('AA:BB:CC:DD:EE:FC', bootable=True)
+        ports = [port1, port2, port3]
+        self.assertEqual(
+            [port1, port3],
+            self.oneview_client._get_bootable_ports(ports, True)
+        )
+
+    def test__get_multiple_not_bootable_ports(self):
+        port1 = TestablePort('AA:BB:CC:DD:EE:FA', bootable=False)
+        port2 = TestablePort('AA:BB:CC:DD:EE:FB', bootable=True)
+        port3 = TestablePort('AA:BB:CC:DD:EE:FC', bootable=False)
+        ports = [port1, port2, port3]
+        self.assertEqual(
+            [port1, port3],
+            self.oneview_client._get_bootable_ports(ports, False)
+        )
+
+    def test__get_no_pxe_enabled_ports(self):
+        port = TestablePort('AA:BB:CC:DD:EE:FF', pxe_enabled=False)
+        ports = [port]
+        self.assertEqual(
+            [], self.oneview_client._get_pxe_enabled_ports(ports)
+        )
+
+    def test__get_pxe_enabled_ports(self):
+        port = TestablePort('AA:BB:CC:DD:EE:FF', pxe_enabled=True)
+        ports = [port]
+        self.assertEqual(
+            ports, self.oneview_client._get_pxe_enabled_ports(ports)
+        )
+
+    def test__get_multiple_pxe_enabled_ports(self):
+        port1 = TestablePort('AA:BB:CC:DD:EE:FA', pxe_enabled=True)
+        port2 = TestablePort('AA:BB:CC:DD:EE:FB', pxe_enabled=False)
+        port3 = TestablePort('AA:BB:CC:DD:EE:FC', pxe_enabled=True)
+        ports = [port1, port2, port3]
+        self.assertEqual(
+            [port1, port3], self.oneview_client._get_pxe_enabled_ports(ports)
+        )
+
+    def test__validate_bootable_connections_without_boot_conns(self):
+        port = TestablePort('AA:BB:CC:DD:EE:FA', bootable=False)
+        ports = [port]
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_bootable_connections(ports)
+
+    def test__validate_bootable_connections_with_one_boot_conns(self):
+        port1 = TestablePort('AA:BB:CC:DD:EE:FA', bootable=True)
+        port2 = TestablePort('AA:BB:CC:DD:EE:FB', bootable=False)
+        ports = [port1, port2]
+        self.oneview_client._validate_bootable_connections(ports)
+
+    def test__validate_bootable_connections_with_two_boot_conns(self):
+        port1 = TestablePort('AA:BB:CC:DD:EE:FA', bootable=True)
+        port2 = TestablePort('AA:BB:CC:DD:EE:FB', bootable=False)
+        port3 = TestablePort('AA:BB:CC:DD:EE:FA', bootable=True)
+        ports = [port1, port2, port3]
+        self.oneview_client._validate_bootable_connections(ports)
+
+    def test__validate_bootable_connections_with_three_boot_conns(self):
+        port1 = TestablePort('AA:BB:CC:DD:EE:FA', bootable=True)
+        port2 = TestablePort('AA:BB:CC:DD:EE:FB', bootable=False)
+        port3 = TestablePort('AA:BB:CC:DD:EE:FA', bootable=True)
+        port4 = TestablePort('AA:BB:CC:DD:EE:FA', bootable=True)
+        ports = [port1, port2, port3, port4]
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_bootable_connections(ports)
+
+    def test__validate_pxe_disabled_bootable_connections(self):
+        port1 = TestablePort(
+            'AA:BB:CC:DD:EE:FA', bootable=True, pxe_enabled=False
+        )
+        ports = [port1]
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_pxe_enabled_bootable_connections(
+                ports
+            )
+
+    def test__validate_pxe_enabled_bootable_connections(self):
+        port1 = TestablePort(
+            'AA:BB:CC:DD:EE:FA', bootable=True, pxe_enabled=True
+        )
+        ports = [port1]
+        self.oneview_client._validate_pxe_enabled_bootable_connections(ports)
+
+    def test__validate_two_pxe_enabled_bootable_connections(self):
+        port1 = TestablePort(
+            'AA:BB:CC:DD:EE:FA', bootable=True, pxe_enabled=True
+        )
+        port2 = TestablePort(
+            'AA:BB:CC:DD:EE:FB', bootable=True, pxe_enabled=True
+        )
+        ports = [port1, port2]
+        self.oneview_client._validate_pxe_enabled_bootable_connections(ports)
+
+    def test__validate_pxe_disabled_without_not_bootable_connections(self):
+        port1 = TestablePort(
+            'AA:BB:CC:DD:EE:FA', bootable=True, pxe_enabled=True
+        )
+        ports = [port1]
+        self.oneview_client._validate_pxe_disabled_not_bootable_connections(
+            ports
+        )
+
+    def test__validate_pxe_enabled_with_not_bootable_connections(self):
+        port1 = TestablePort(
+            'AA:BB:CC:DD:EE:FA', bootable=True, pxe_enabled=True
+        )
+        port2 = TestablePort(
+            'AA:BB:CC:DD:EE:FA', bootable=False, pxe_enabled=True
+        )
+        ports = [port1, port2]
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client.\
+                _validate_pxe_disabled_not_bootable_connections(
+                    ports
+                )
+
+    def test__validate_pxe_disabled_with_not_bootable_connections(self):
+        port1 = TestablePort(
+            'AA:BB:CC:DD:EE:FA', bootable=True, pxe_enabled=True
+        )
+        port2 = TestablePort(
+            'AA:BB:CC:DD:EE:FA', bootable=False, pxe_enabled=False
+        )
+        ports = [port1, port2]
+        self.oneview_client._validate_pxe_disabled_not_bootable_connections(
+            ports
+        )
+
+    def test__validate_node_and_port_server_hardware_uri_without_ports(self):
+        driver_info = {"server_hardware_uri": "/rest/server-hardware/uri"}
+        self.oneview_client._validate_node_and_port_server_hardware_uri(
+            driver_info, []
+        )
+
+    def test__validate_node_and_port_server_hardware_uri(self):
+        sh_id = 'sh-id'
+        sh_uri = "/rest/server-hardware/" + sh_id
+        driver_info = {"server_hardware_uri": sh_id}
+        port1 = TestablePort('AA:BB:CC:DD:EE:FA', sh_id=sh_id)
+        ports = [port1]
+        self.oneview_client._validate_node_and_port_server_hardware_uri(
+            driver_info, ports
+        )
+
+    def test__dont_validate_node_and_port_server_hardware_uri(self):
+        sh_id = 'sh-id'
+        wrong_sh_id = 'wrong-id'
+        sh_uri = "/rest/server-hardware/" + sh_id
+        driver_info = {"server_hardware_uri": sh_id}
+        port1 = TestablePort('AA:BB:CC:DD:EE:FA', sh_id=sh_id)
+        port2 = TestablePort('AA:BB:CC:DD:EE:FA', sh_id=wrong_sh_id)
+        ports = [port1, port2]
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_node_and_port_server_hardware_uri(
+                driver_info, ports
+            )
+
+    @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
+    @mock.patch.object(models.ServerHardware, 'get_macs', autospec=True)
+    def test__validate_connection_mac(
+        self, mock_get_macs, mock_get_server_hardware
+    ):
+        sh_id = 'sh-id'
+        sh_uri = "/rest/server-hardware/" + sh_id
+        port1 = TestablePort('AA:BB:CC:DD:EE:FA', sh_id=sh_id)
+        ports = [port1]
+
+        driver_info = {"server_hardware_uri": sh_uri}
+
+        server_hardware_mock = models.ServerHardware()
+        setattr(server_hardware_mock, "uri", "uri")
+        mock_get_server_hardware.return_value = server_hardware_mock
+        mock_get_macs.return_value = {'aa:bb:cc:dd:ee:fa'}
+
+        self.oneview_client._validate_connection_mac(driver_info, ports)
+
+    @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
+    @mock.patch.object(models.ServerHardware, 'get_macs', autospec=True)
+    def test__dont_validate_connection_mac(
+        self, mock_get_macs, mock_get_server_hardware
+    ):
+        sh_id = 'sh-id'
+        sh_uri = "/rest/server-hardware/" + sh_id
+        port1 = TestablePort('AA:BB:CC:DD:EE:FA', sh_id=sh_id)
+        port2 = TestablePort('AA:BB:CC:DD:EE:FB', sh_id=sh_id)
+        ports = [port1, port2]
+
+        driver_info = {"server_hardware_uri": sh_uri}
+
+        server_hardware_mock = models.ServerHardware()
+        setattr(server_hardware_mock, "uri", "uri")
+        mock_get_server_hardware.return_value = server_hardware_mock
+        mock_get_macs.return_value = {'aa:bb:cc:dd:ee:fb'}
+
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_connection_mac(driver_info, ports)
 
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_hardware_inconsistent_memorymb_value(
