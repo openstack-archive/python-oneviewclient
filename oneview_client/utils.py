@@ -33,3 +33,54 @@ def get_uuid_from_uri(uri):
 def get_uri_from_uuid(resource_prefix, uuid):
     if uuid and _is_uuid_valid(uuid):
         return str(resource_prefix) + str(uuid)
+
+
+def get_all_macs(server_hardware):
+    macs = []
+    device_slots = server_hardware.port_map.get('deviceSlots')
+    physical_ports = get_physical_ports(device_slots)
+    virtual_ports = get_virtual_ports(physical_ports)
+
+    macs.extend(get_physical_macs(physical_ports))
+    macs.extend(get_virtual_macs(virtual_ports))
+    return set(macs)
+
+
+def get_physical_ports(device_slots):
+    physical_ports = []
+    for device_slot in device_slots:
+        if not (device_slot and device_slot.get('physicalPorts')):
+            continue
+        physical_ports.extend(device_slot.get('physicalPorts'))
+
+    return physical_ports
+
+
+def get_virtual_ports(physical_ports):
+    virtual_ports = []
+    for physical_port in physical_ports:
+        if not (physical_port and physical_port.get('virtualPorts')):
+            continue
+        virtual_ports.extend(physical_port.get('virtualPorts'))
+
+    return virtual_ports
+
+
+def get_physical_macs(physical_ports):
+    physical_macs = []
+    for physical_port in physical_ports:
+        if not (physical_port and physical_port.get('mac')):
+            continue
+        physical_macs.append(physical_port.get('mac').lower())
+
+    return physical_macs
+
+
+def get_virtual_macs(virtual_ports):
+    virtual_macs = []
+    for virtual_port in virtual_ports:
+        if not (virtual_port and virtual_port.get('mac')):
+            continue
+        virtual_macs.append(virtual_port.get('mac').lower())
+
+    return virtual_macs
