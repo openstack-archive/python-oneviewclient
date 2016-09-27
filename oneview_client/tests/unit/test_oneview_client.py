@@ -800,140 +800,92 @@ class OneViewClientTestCase(unittest.TestCase):
             {}
         )
 
-    @mock.patch.object(client.Client, 'get_server_profile_template',
-                       autospec=True)
-    @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
-    def test_validate_node_server_profile_template_inconsistent_sht(
-        self, mock_server_hardware, mock_server_template
-    ):
-        server_hardware_mock = models.ServerHardware()
-        setattr(server_hardware_mock,
-                "server_hardware_type_uri",
-                "/sht_uri")
-        setattr(server_hardware_mock, "enclosure_group_uri", "eg_uri")
-
-        server_profile_template_mock = models.ServerProfileTemplate()
-        setattr(server_profile_template_mock,
-                "server_hardware_type_uri",
-                "/inconsistent_uri")
-        setattr(server_profile_template_mock,
-                "enclosure_group_uri",
-                "/inconsistent_uri")
-
-        mock_server_hardware.return_value = server_hardware_mock
-        mock_server_template.return_value = server_profile_template_mock
-
-        driver_info = {
-            "server_hardware_uri": "/any_uri",
-            "server_profile_template_uri": "/profile_uri"
-        }
-
-        exc_expected_msg = (
-            "Server profile template /profile_uri serverHardwareTypeUri is"
-            " inconsistent with server hardware /any_uri"
-            " serverHardwareTypeUri."
+    def test_validate_node_server_profile_template_inconsistent_sht(self):
+        server_profile_template = models.ServerProfileTemplate()
+        setattr(server_profile_template, "uri", "/any_uri")
+        setattr(
+            server_profile_template, "server_hardware_type_uri", "/any_uri"
         )
 
-        self.assertRaisesRegexp(
-            exceptions.OneViewInconsistentResource,
-            exc_expected_msg,
-            self.oneview_client.validate_node_server_profile_template,
-            driver_info
+        server_hardware = models.ServerHardware()
+        setattr(server_hardware, "uri", "/any_uri")
+        setattr(server_hardware, "server_hardware_type_uri", "/sht_uri")
+
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_spt_server_hardware_type(
+                server_profile_template, server_hardware
+            )
+
+    def test_validate_node_server_profile_template_inconsistent_eg(self):
+        server_profile_template = models.ServerProfileTemplate()
+        setattr(server_profile_template, "uri", "/any_uri")
+        setattr(server_profile_template, "enclosure_group_uri", "/any_uri")
+
+        server_hardware = models.ServerHardware()
+        setattr(server_hardware, "uri", "/any_uri")
+        setattr(server_hardware, "enclosure_group_uri", "/eg_uri")
+
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_spt_enclosure_group(
+                server_profile_template, server_hardware
+            )
+
+    def test__validate_server_profile_template_manage_boot(self):
+        server_profile_template = models.ServerProfileTemplate()
+        setattr(server_profile_template, "uri", "/any_uri")
+        spt_manage_boot = {'manageBoot': True}
+        setattr(server_profile_template, "boot", spt_manage_boot)
+
+        self.oneview_client._validate_spt_manage_boot(
+            server_profile_template
         )
 
-    @mock.patch.object(client.Client, 'get_server_profile_template',
-                       autospec=True)
-    @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
-    def test_validate_node_server_profile_template_inconsistent_eg(
-        self, mock_server_hardware, mock_server_template
-    ):
-        server_hardware_mock = models.ServerHardware()
-        setattr(server_hardware_mock,
-                "server_hardware_type_uri",
-                "/sht_uri")
-        setattr(server_hardware_mock, "enclosure_group_uri", "eg_uri")
+    def test__validate_server_profile_template_manage_boot_false(self):
+        server_profile_template = models.ServerProfileTemplate()
+        setattr(server_profile_template, "uri", "/any_uri")
+        spt_manage_boot = {'manageBoot': False}
+        setattr(server_profile_template, "boot", spt_manage_boot)
 
-        server_profile_template_mock = models.ServerProfileTemplate()
-        setattr(server_profile_template_mock,
-                "server_hardware_type_uri",
-                "/sht_uri")
-        setattr(server_profile_template_mock,
-                "enclosure_group_uri",
-                "/inconsistent_uri")
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_spt_manage_boot(
+                server_profile_template
+            )
 
-        mock_server_hardware.return_value = server_hardware_mock
-        mock_server_template.return_value = server_profile_template_mock
-
-        driver_info = {
-            "server_hardware_uri": "/any_uri",
-            "server_profile_template_uri": "/profile_uri"
-        }
-
-        exc_expected_msg = (
-            "Server profile template /profile_uri enclosureGroupUri is"
-            " inconsistent with server hardware /any_uri"
-            " serverGroupUri."
-        )
-
-        self.assertRaisesRegexp(
-            exceptions.OneViewInconsistentResource,
-            exc_expected_msg,
-            self.oneview_client.validate_node_server_profile_template,
-            driver_info
-        )
-
-    @mock.patch.object(client.Client, 'get_server_profile_template_by_uuid',
-                       autospec=True)
-    def test_validate_spt_boot_connections(
-        self, mock_server_template
-    ):
-        server_hardware_mock = models.ServerHardware()
-        setattr(server_hardware_mock, "server_hardware_type_uri", "/sht_uri")
-        setattr(server_hardware_mock, "enclosure_group_uri", "/eg_uri")
-        profile_template_mock = models.ServerProfileTemplate()
-        setattr(profile_template_mock, "uri", "/template_uri")
-        setattr(profile_template_mock, "server_hardware_type_uri", "/sht_uri")
-        setattr(profile_template_mock, "enclosure_group_uri", "/eg_uri")
-
-        # Negative scenario
-        profile_template_mock_connections = [
-            {'boot': {'priority': u'NotBootable'},
-             'mac': u'56:88:7B:C0:00:0B'}
-        ]
-        setattr(profile_template_mock,
-                "connections",
-                profile_template_mock_connections)
-
-        mock_server_template.return_value = profile_template_mock
-
-        exc_expected_msg = (
-            "No primary boot connection configured for server profile"
-            " template /template_uri."
-        )
-
-        server_profile_template_uuid = '11111111-2222-3333-4444-5555555555'
-
-        self.assertRaisesRegexp(
-            exceptions.OneViewInconsistentResource,
-            exc_expected_msg,
-            self.oneview_client.validate_spt_boot_connections,
-            server_profile_template_uuid
-        )
-
-        # Positive scenario
+    def test__validate_spt_boot_connections(self):
+        server_profile_template = models.ServerProfileTemplate()
+        setattr(server_profile_template, "uri", "/template_uri")
         profile_template_mock_connections = [
             {'boot': {'priority': u'Primary'},
              'mac': u'56:88:7B:C0:00:0B'}
         ]
-        setattr(profile_template_mock,
+        setattr(server_profile_template,
                 "connections",
                 profile_template_mock_connections)
 
-        mock_server_template.return_value = profile_template_mock
-
-        self.oneview_client.validate_spt_boot_connections(
-            server_profile_template_uuid
+        self.oneview_client._validate_spt_boot_connections(
+            server_profile_template
         )
+
+    def test__validate_spt_boot_connections_no_primary_boot(self):
+        server_profile_template = models.ServerProfileTemplate()
+        setattr(server_profile_template, "uri", "/template_uri")
+
+        profile_template_mock_connections = [
+            {'boot': {'priority': u'NotBootable'},
+             'mac': u'56:88:7B:C0:00:0B'}
+        ]
+        setattr(server_profile_template,
+                "connections",
+                profile_template_mock_connections)
+
+        with self.assertRaises(exceptions.OneViewInconsistentResource):
+            self.oneview_client._validate_spt_boot_connections(
+                server_profile_template
+            )
+
+    def test__validate_spt_boot_connections_more_than_one_connection(self):
+        server_profile_template = models.ServerProfileTemplate()
+        setattr(server_profile_template, "uri", "/template_uri")
 
         # More than one connection, Primary first
         profile_template_mock_connections = [
@@ -942,14 +894,12 @@ class OneViewClientTestCase(unittest.TestCase):
             {'boot': {'priority': u'NotBootable'},
              'mac': u'56:88:7B:C0:00:0C'}
         ]
-        setattr(profile_template_mock,
+        setattr(server_profile_template,
                 "connections",
                 profile_template_mock_connections)
 
-        mock_server_template.return_value = profile_template_mock
-
-        self.oneview_client.validate_spt_boot_connections(
-            server_profile_template_uuid
+        self.oneview_client._validate_spt_boot_connections(
+            server_profile_template
         )
 
         # More than one connection, Primary NOT first
@@ -959,14 +909,12 @@ class OneViewClientTestCase(unittest.TestCase):
             {'boot': {'priority': u'Primary'},
              'mac': u'56:88:7B:C0:00:0C'}
         ]
-        setattr(profile_template_mock,
+        setattr(server_profile_template,
                 "connections",
                 profile_template_mock_connections)
 
-        mock_server_template.return_value = profile_template_mock
-
-        self.oneview_client.validate_spt_boot_connections(
-            server_profile_template_uuid
+        self.oneview_client._validate_spt_boot_connections(
+            server_profile_template
         )
 
     @mock.patch.object(client.Client, 'get_oneview_version')
