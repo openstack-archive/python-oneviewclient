@@ -755,6 +755,7 @@ class Client(BaseClient):
         spt_server_hardware_type_uri = (
             server_profile_template.server_hardware_type_uri
         )
+
         spt_enclosure_group_uri = server_profile_template.enclosure_group_uri
 
         server_hardware = self.get_server_hardware(node_info)
@@ -776,6 +777,19 @@ class Client(BaseClient):
                 " serverGroupUri." %
                 {'spt_uri': node_spt_uri,
                  'server_hardware_uri': node_info.get('server_hardware_uri')}
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def validate_server_profile_template_manage_boot(self, uuid):
+        server_profile_template = self.get_server_profile_template_by_uuid(
+            uuid
+        )
+        manage_boot = server_profile_template.boot.get('manageBoot')
+
+        if not manage_boot:
+            message = (
+                "Sever Profile Template does not allow to manage boot order."
             )
             raise exceptions.OneViewInconsistentResource(message)
 
