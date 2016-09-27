@@ -739,43 +739,69 @@ class Client(BaseClient):
 
     @auditing.audit
     def validate_node_server_profile_template(self, node_info):
-        node_spt_uri = node_info.get('server_profile_template_uri')
-
         server_profile_template = self.get_server_profile_template(node_info)
+        server_hardware = self.get_server_hardware(node_info)
+
+        self._validate_spt_server_hardware_type(
+            server_profile_template, server_hardware
+        )
+        self._validate_spt_enclosure_group(
+            server_profile_template, server_hardware
+        )
+        self._validate_spt_manage_boot(server_profile_template)
+
+    @auditing.audit
+    def _validate_spt_server_hardware_type(
+        self, server_profile_template, server_hardware
+    ):
         spt_server_hardware_type_uri = (
             server_profile_template.server_hardware_type_uri
         )
-        spt_enclosure_group_uri = server_profile_template.enclosure_group_uri
-
-        server_hardware = self.get_server_hardware(node_info)
         sh_server_hardware_type_uri = server_hardware.server_hardware_type_uri
-        sh_enclosure_group_uri_uri = server_hardware.enclosure_group_uri
+
         if spt_server_hardware_type_uri != sh_server_hardware_type_uri:
             message = (
                 "Server profile template %(spt_uri)s serverHardwareTypeUri is"
                 " inconsistent with server hardware %(server_hardware_uri)s"
                 " serverHardwareTypeUri." %
-                {'spt_uri': node_spt_uri,
-                 'server_hardware_uri': node_info.get('server_hardware_uri')}
-            )
-            raise exceptions.OneViewInconsistentResource(message)
-        if spt_enclosure_group_uri != sh_enclosure_group_uri_uri:
-            message = (
-                "Server profile template %(spt_uri)s enclosureGroupUri is"
-                " inconsistent with server hardware %(server_hardware_uri)s"
-                " serverGroupUri." %
-                {'spt_uri': node_spt_uri,
-                 'server_hardware_uri': node_info.get('server_hardware_uri')}
+                {'spt_uri': server_profile_template.uri,
+                 'server_hardware_uri': server_hardware.uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
 
     @auditing.audit
-    def validate_spt_boot_connections(self, uuid):
-        server_profile_template = self.get_server_profile_template_by_uuid(
-            uuid
-        )
+    def _validate_spt_enclosure_group(
+        self, server_profile_template, server_hardware
+    ):
+        spt_enclosure_group_uri = server_profile_template.enclosure_group_uri
+        sh_enclosure_group_uri = server_hardware.enclosure_group_uri
 
-        for connection in server_profile_template.connections:
+        if spt_enclosure_group_uri != sh_enclosure_group_uri:
+            message = (
+                "Server profile template %(spt_uri)s enclosureGroupUri is"
+                " inconsistent with server hardware %(server_hardware_uri)s"
+                " serverGroupUri." %
+                {'spt_uri': server_profile_template.uri,
+                 'server_hardware_uri': server_hardware.uri}
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def _validate_spt_manage_boot(self, server_profile_template):
+        manage_boot = server_profile_template.boot.get('manageBoot')
+
+        if not manage_boot:
+            message = (
+                "Server Profile Template: %s, does not allow to manage "
+                "boot order." % server_profile_template.uri
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def _validate_spt_boot_connections(self, server_profile_template):
+        spt_connections = server_profile_template.connections
+
+        for connection in spt_connections:
             boot = connection.get('boot')
             if boot and boot.get('priority').lower() == 'primary':
                 return

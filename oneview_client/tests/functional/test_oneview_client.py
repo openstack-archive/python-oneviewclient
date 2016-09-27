@@ -311,7 +311,83 @@ class OneViewClientTestCase(unittest.TestCase):
         )
 
     @mock.patch.object(requests, 'get', autospec=True)
-    def test_validate_spt_boot_connections(self, mock_get, mock__authenticate):
+    def test_validate_node_server_profile_template(
+        self, mock_get, mock__authenticate
+    ):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        server_profile_template = copy.deepcopy(
+            fixtures.SERVER_PROFILE_TEMPLATE_JSON
+        )
+        server_hardware = copy.deepcopy(fixtures.SERVER_HARDWARE_JSON)
+        server_hardware['serverHardwareTypeUri'] = (
+            "/rest/server-hardware-types/934E00C0-45F0-4329-AA8C-A0864E834ED4"
+        )
+
+        node_info = {
+            'server_profile_template_uri':
+                server_profile_template.get('uri'),
+            'server_hardware_uri':
+                server_hardware.get('uri'),
+        }
+
+        response = mock_get.return_value
+        response.status_code = http_client.OK
+        response.json = mock.MagicMock()
+        response.json.side_effect = [
+            server_profile_template, server_hardware
+        ]
+        mock_get.return_value = response
+
+        oneview_client.validate_node_server_profile_template(
+            node_info
+        )
+
+    @mock.patch.object(requests, 'get', autospec=True)
+    def test_validate_node_server_profile_template_manage_boot_false(
+        self, mock_get, mock__authenticate
+    ):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        server_profile_template = copy.deepcopy(
+            fixtures.SERVER_PROFILE_TEMPLATE_JSON
+        )
+        server_profile_template['boot']['manageBoot'] = False
+
+        server_hardware = copy.deepcopy(fixtures.SERVER_HARDWARE_JSON)
+        server_hardware['serverHardwareTypeUri'] = (
+            "/rest/server-hardware-types/934E00C0-45F0-4329-AA8C-A0864E834ED4"
+        )
+
+        node_info = {
+            'server_profile_template_uri':
+                server_profile_template.get('uri'),
+            'server_hardware_uri':
+                server_hardware.get('uri'),
+        }
+
+        response = mock_get.return_value
+        response.status_code = http_client.OK
+        response.json = mock.MagicMock()
+        response.json.side_effect = [
+            server_profile_template, server_hardware
+        ]
+        mock_get.return_value = response
+
+        self.assertRaises(
+            exceptions.OneViewInconsistentResource,
+            oneview_client.validate_node_server_profile_template,
+            node_info
+        )
+
+    @mock.patch.object(requests, 'get', autospec=True)
+    def test__validate_server_profile_template_boot_connections(
+        self, mock_get, mock__authenticate
+    ):
         oneview_client = client.Client(self.manager_url,
                                        self.username,
                                        self.password)
@@ -324,6 +400,28 @@ class OneViewClientTestCase(unittest.TestCase):
             # Two connections, Primary second
             fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[3],
         ]
+
+        for spt in passes:
+            server_profile_template = models.ServerProfileTemplate.from_json(
+                spt
+            )
+            response = mock_get.return_value
+            response.status_code = http_client.OK
+            response.json = mock.MagicMock(
+                return_value=server_profile_template
+            )
+            mock_get.return_value = response
+            oneview_client._validate_spt_boot_connections(
+                server_profile_template
+            )
+
+    @mock.patch.object(requests, 'get', autospec=True)
+    def test__validate_server_profile_template_boot_connections_fails(
+        self, mock_get, mock__authenticate
+    ):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
         fails = [
             # Single connection, no primary
             fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[1],
@@ -332,27 +430,21 @@ class OneViewClientTestCase(unittest.TestCase):
             # No connections
             fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[9],
         ]
-        for spt in passes:
-            response = mock_get.return_value
-            response.status_code = http_client.OK
-            response.json = mock.MagicMock(
-                return_value=spt
-            )
-            mock_get.return_value = response
-            oneview_client.validate_spt_boot_connections(
-                utils.get_uuid_from_uri(spt.get('uri'))
-            )
+
         for spt in fails:
+            server_profile_template = models.ServerProfileTemplate.from_json(
+                spt
+            )
             response = mock_get.return_value
             response.status_code = http_client.OK
             response.json = mock.MagicMock(
-                return_value=spt
+                return_value=server_profile_template
             )
             mock_get.return_value = response
             self.assertRaises(
                 exceptions.OneViewInconsistentResource,
-                oneview_client.validate_spt_boot_connections,
-                utils.get_uuid_from_uri(spt.get('uri'))
+                oneview_client._validate_spt_boot_connections,
+                server_profile_template
             )
 
     @mock.patch.object(client.Client, '_wait_for_task_to_complete')
