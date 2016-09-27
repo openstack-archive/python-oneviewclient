@@ -884,6 +884,43 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, 'get_server_profile_template_by_uuid',
                        autospec=True)
+    def test_validate_server_profile_template_manage_boot(
+        self, mock_server_template
+    ):
+        server_profile_template_uuid = '11111111-2222-3333-4444-5555555555'
+        server_profile_template = copy.deepcopy(
+            fixtures.SERVER_PROFILE_TEMPLATE_JSON
+        )
+
+        # Positive scenario
+        mock_server_template.return_value = (
+            models.ServerProfile.from_json(server_profile_template)
+        )
+
+        self.oneview_client.validate_server_profile_template_manage_boot(
+            server_profile_template_uuid
+        )
+
+        # Negative scenario
+        server_profile_template['boot'] = {
+            'manageBoot': False
+        }
+        mock_server_template.return_value = (
+            models.ServerProfile.from_json(server_profile_template)
+        )
+        exc_expected_msg = (
+            "Sever Profile Template does not allow setting boot order."
+        )
+
+        self.assertRaisesRegexp(
+            exceptions.OneViewInconsistentResource,
+            exc_expected_msg,
+            self.oneview_client.validate_server_profile_template_manage_boot,
+            server_profile_template_uuid
+        )
+
+    @mock.patch.object(client.Client, 'get_server_profile_template_by_uuid',
+                       autospec=True)
     def test_validate_spt_boot_connections(
         self, mock_server_template
     ):

@@ -3884,14 +3884,7 @@ SERVER_PROFILE_TEMPLATE_LIST_JSON = {
             ],
             "bootMode": None,
             "boot": {
-                "manageBoot": True,
-                "order": [
-                    "CD",
-                    "Floppy",
-                    "USB",
-                    "HardDisk",
-                    "PXE"
-                ]
+                "manageBoot": False,
             },
             "bios": {
                 "manageBios": False,
@@ -3963,7 +3956,7 @@ SERVER_PROFILE_TEMPLATE_LIST_JSON = {
             ],
             "bootMode": None,
             "boot": {
-                "manageBoot": True,
+                "manageBoot": False,
                 "order": [
                     "CD",
                     "Floppy",
@@ -4033,13 +4026,7 @@ SERVER_PROFILE_TEMPLATE_LIST_JSON = {
                 "pxeBootPolicy": None
             },
             "boot": {
-                "manageBoot": True,
-                "order": [
-                    "CD",
-                    "USB",
-                    "HardDisk",
-                    "PXE"
-                ]
+                "manageBoot": False,
             },
             "bios": {
                 "manageBios": False,

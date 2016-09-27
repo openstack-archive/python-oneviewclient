@@ -311,6 +311,48 @@ class OneViewClientTestCase(unittest.TestCase):
         )
 
     @mock.patch.object(requests, 'get', autospec=True)
+    def test_validate_server_profile_template_manage_boot(
+        self, mock_get, mock__authenticate
+    ):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        # ServerProfileTemplate.boot.manageBoot = True
+        passes = [
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[0],
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[2],
+        ]
+        # ServerProfileTemplate.boot.manageBoot = False
+        fails = [
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[5],
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get('members')[6],
+        ]
+
+        for spt in passes:
+            response = mock_get.return_value
+            response.status_code = http_client.OK
+            response.json = mock.MagicMock(
+                return_value=spt
+            )
+            mock_get.return_value = response
+            oneview_client.validate_server_profile_template_manage_boot(
+                utils.get_uuid_from_uri(spt.get('uri'))
+            )
+        for spt in fails:
+            response = mock_get.return_value
+            response.status_code = http_client.OK
+            response.json = mock.MagicMock(
+                return_value=spt
+            )
+            mock_get.return_value = response
+            self.assertRaises(
+                exceptions.OneViewInconsistentResource,
+                oneview_client.validate_server_profile_template_manage_boot,
+                utils.get_uuid_from_uri(spt.get('uri'))
+            )
+
+    @mock.patch.object(requests, 'get', autospec=True)
     def test_validate_spt_boot_connections(self, mock_get, mock__authenticate):
         oneview_client = client.Client(self.manager_url,
                                        self.username,
