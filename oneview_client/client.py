@@ -614,19 +614,10 @@ class Client(BaseClient):
     ):
         node_sh_uri = node_info.get('server_hardware_uri')
         server_hardware = self.get_server_hardware(node_info)
-        server_hardware_cpus = (server_hardware.processor_core_count
-                                * server_hardware.processor_count)
         if str(server_hardware.memory_mb) != str(node_memorymb):
             message = (
                 "Node memory_mb is inconsistent with OneView's"
                 " server hardware %(server_hardware_uri)s memoryMb."
-                % {'server_hardware_uri': node_sh_uri}
-            )
-            raise exceptions.OneViewInconsistentResource(message)
-        elif str(server_hardware_cpus) != str(node_cpus):
-            message = (
-                "Node cpus is inconsistent with OneView's"
-                " server hardware %(server_hardware_uri)s cpus."
                 % {'server_hardware_uri': node_sh_uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
