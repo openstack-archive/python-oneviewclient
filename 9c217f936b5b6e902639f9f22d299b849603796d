@@ -1,0 +1,10 @@
+Code-Review+1: Hugo Nicodemos <nicodemos@lsd.ufcg.edu.br>
+Code-Review+1: Charlle Daniel <charlledaniel@lsd.ufcg.edu.br>
+Code-Review+2: Gabriel Bezerra <gabrielb@lsd.ufcg.edu.br>
+Workflow+1: Gabriel Bezerra <gabrielb@lsd.ufcg.edu.br>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 13 Oct 2016 22:16:51 +0000
+Reviewed-on: https://review.openstack.org/375089
+Project: openstack/python-oneviewclient
+Branch: refs/heads/master
