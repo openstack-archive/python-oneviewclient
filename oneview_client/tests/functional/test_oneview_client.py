@@ -465,6 +465,58 @@ class OneViewClientTestCase(unittest.TestCase):
         )
         mock_ilo_logout.assert_called()
 
+    @mock.patch.object(requests, 'get', autospec=True)
+    def test_validate_server_profile_template_mac_type_negative(self, mock_get,
+                                                                mock__auth):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        server_profile_template_virtual_mac = copy.deepcopy(
+            fixtures.SERVER_PROFILE_TEMPLATE_JSON
+        )
+
+        response = mock_get.return_value
+        response.status_code = http_client.OK
+        response.json = mock.MagicMock(
+            return_value=server_profile_template_virtual_mac
+        )
+        mock_get.return_value = response
+
+        spt_uuid = utils.get_uuid_from_uri(
+            server_profile_template_virtual_mac.get("uri")
+        )
+
+        self.assertRaises(
+            exceptions.OneViewInconsistentResource,
+            oneview_client.validate_server_profile_template_mac_type,
+            spt_uuid
+        )
+
+    @mock.patch.object(requests, 'get', autospec=True)
+    def test_validate_server_profile_template_mac_type(self, mock_get,
+                                                       mock__auth):
+        oneview_client = client.Client(self.manager_url,
+                                       self.username,
+                                       self.password)
+
+        server_profile_template_physical_mac = (
+            fixtures.SERVER_PROFILE_TEMPLATE_LIST_JSON.get("members")[3]
+        )
+
+        response = mock_get.return_value
+        response.status_code = http_client.OK
+        response.json = mock.MagicMock(
+            return_value=server_profile_template_physical_mac
+        )
+        mock_get.return_value = response
+
+        spt_uuid = utils.get_uuid_from_uri(
+            server_profile_template_physical_mac.get("uri")
+        )
+
+        oneview_client.validate_server_profile_template_mac_type(spt_uuid)
+
 
 @mock.patch.object(client.ClientV2, '_authenticate', autospec=True)
 class OneViewClientV2TestCase(unittest.TestCase):
