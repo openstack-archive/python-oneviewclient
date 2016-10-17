@@ -1,0 +1,8 @@
+Code-Review+2: Gabriel Bezerra <gabrielb@lsd.ufcg.edu.br>
+Workflow+1: Gabriel Bezerra <gabrielb@lsd.ufcg.edu.br>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 17 Oct 2016 14:45:13 +0000
+Reviewed-on: https://review.openstack.org/377680
+Project: openstack/python-oneviewclient
+Branch: refs/heads/master
