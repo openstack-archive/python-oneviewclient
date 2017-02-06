@@ -83,7 +83,6 @@ def collection(host, collection_uri, request_headers, x_auth_token,
                                               request_headers,
                                               x_auth_token,
                                               enforce_SSL)
-
     while status < 300:
         # verify expected type
 
@@ -161,7 +160,7 @@ def collection(host, collection_uri, request_headers, x_auth_token,
 
 def get_mac_from_ilo(host_ip, x_auth_token, nic_index=0, allow_insecure=False):
     # for each system in the systems collection at /rest/v1/Systems
-    ilo_hardware = collection(host_ip, '/rest/v1/Systems', None,
+    ilo_hardware = collection(host_ip, '/rest/v1/systems', None,
                               x_auth_token, enforce_SSL=not allow_insecure)
 
     for status, headers, system, member_uri in ilo_hardware:

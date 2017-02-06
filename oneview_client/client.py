@@ -117,7 +117,7 @@ class BaseClient(object):
     def _logout(self):
         if self.manager_url in ("", None):
             raise exceptions.OneViewConnectionError(
-                "Can't connect to OneView: 'manager_url' configuration"
+                "Can't connect to OneView: 'manager_url' configuration "
                 "parameter is blank")
 
         url = '%s/rest/login-sessions' % self.manager_url
@@ -284,7 +284,10 @@ class BaseClient(object):
     def get_sh_mac_from_ilo(self, server_hardware_uuid, nic_index=0):
         host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
         try:
-            return ilo_utils.get_mac_from_ilo(host_ip, ilo_token, nic_index)
+            return ilo_utils.get_mac_from_ilo(host_ip,
+                                              ilo_token,
+                                              nic_index,
+                                              self.allow_insecure_connections)
         finally:
             ilo_utils.ilo_logout(host_ip, ilo_token)
 
@@ -437,8 +440,8 @@ class Client(BaseClient):
 
         if server_profile_uri is None:
             message = (
-                "There is no server profile assigned to"
-                " %(server_hardware_uri)s" %
+                "There is no server profile assigned to "
+                "%(server_hardware_uri)s" %
                 {'server_hardware_uri': node_info.get('server_hardware_uri')}
             )
             raise exceptions.OneViewServerProfileAssociatedError(message)
@@ -528,19 +531,12 @@ class Client(BaseClient):
                                  server_profile_template_uuid):
 
         if not server_profile_name:
-            raise ValueError(
-                'Missing Server Profile name.'
-            )
+            raise ValueError('Missing Server Profile name.')
 
         if not server_hardware_uuid:
-            raise ValueError(
-                'Missing Server Hardware uuid.'
-            )
-
+            raise ValueError('Missing Server Hardware uuid.')
         if not server_profile_template_uuid:
-            raise ValueError(
-                'Missing Server Profile Template uuid.'
-            )
+            raise ValueError('Missing Server Profile Template uuid.')
 
         server_hardware_uri = '%s%s' % (
             SERVER_HARDWARE_PREFIX_URI,
@@ -615,8 +611,8 @@ class Client(BaseClient):
         server_hardware = self.get_server_hardware(node_info)
         if str(server_hardware.memory_mb) != str(node_memorymb):
             message = (
-                "Node memory_mb is inconsistent with OneView's"
-                " server hardware %(server_hardware_uri)s memoryMb."
+                "Node memory_mb is inconsistent with OneView's "
+                "server hardware %(server_hardware_uri)s memoryMb."
                 % {'server_hardware_uri': node_sh_uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
@@ -629,9 +625,9 @@ class Client(BaseClient):
 
         if server_hardware_sht_uri != node_sht_uri:
             message = (
-                "Node server_hardware_type_uri is inconsistent"
-                " with OneView's server hardware %(server_hardware_uri)s"
-                " serverHardwareTypeUri." %
+                "Node server_hardware_type_uri is inconsistent "
+                "with OneView's server hardware %(server_hardware_uri)s "
+                "serverHardwareTypeUri." %
                 {'server_hardware_uri': node_info.get('server_hardware_uri')}
             )
             raise exceptions.OneViewInconsistentResource(message)
@@ -645,8 +641,7 @@ class Client(BaseClient):
         server_hardware = self.get_server_hardware(node_info)
         sh_enclosure_group_uri = server_hardware.enclosure_group_uri
         node_enclosure_group_uri = node_info.get('enclosure_group_uri')
-
-        if node_enclosure_group_uri not in ('', 'None', None):
+        if node_enclosure_group_uri:
             if sh_enclosure_group_uri != node_enclosure_group_uri:
                 message = (
                     "Node enclosure_group_uri '%(node_enclosure_group_uri)s' "
@@ -702,10 +697,10 @@ class Client(BaseClient):
             if port_address.lower() != mac.lower():
                 is_mac_address_compatible = False
 
-        if (not is_mac_address_compatible) or len(ports) == 0:
+        if not (is_mac_address_compatible and ports):
             message = (
-                "The ports of the node are not compatible with its"
-                " server profile %(server_profile_uri)s." %
+                "The ports of the node are not compatible with its "
+                "server profile %(server_profile_uri)s." %
                 {'server_profile_uri': server_profile.uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
@@ -729,10 +724,10 @@ class Client(BaseClient):
             if port_address.lower() != mac:
                 is_mac_address_compatible = False
 
-        if (not is_mac_address_compatible) or len(ports) == 0:
+        if not (is_mac_address_compatible and ports):
             message = (
-                "The ports of the node are not compatible with its"
-                " server hardware %(server_hardware_uri)s." %
+                "The ports of the node are not compatible with its "
+                "server hardware %(server_hardware_uri)s." %
                 {'server_hardware_uri': server_hardware.uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
@@ -761,9 +756,9 @@ class Client(BaseClient):
 
         if spt_server_hardware_type_uri != sh_server_hardware_type_uri:
             message = (
-                "Server profile template %(spt_uri)s serverHardwareTypeUri is"
-                " inconsistent with server hardware %(server_hardware_uri)s"
-                " serverHardwareTypeUri." %
+                "Server profile template %(spt_uri)s serverHardwareTypeUri is "
+                "inconsistent with server hardware %(server_hardware_uri)s "
+                "serverHardwareTypeUri." %
                 {'spt_uri': server_profile_template.uri,
                  'server_hardware_uri': server_hardware.uri}
             )
@@ -773,14 +768,18 @@ class Client(BaseClient):
     def _validate_spt_enclosure_group(
         self, server_profile_template, server_hardware
     ):
-        spt_enclosure_group_uri = server_profile_template.enclosure_group_uri
-        sh_enclosure_group_uri = server_hardware.enclosure_group_uri
+        spt_enclosure_group_uri = getattr(
+            server_profile_template, 'enclosure_group_uri', '')
+#       server_profile_templte.enclosure_group_uri
+        sh_enclosure_group_uri = getattr(
+            server_hardware, 'enclosure_group_uri', '')
+#       server_hardware.enclosure_group_uri
 
         if spt_enclosure_group_uri != sh_enclosure_group_uri:
             message = (
-                "Server profile template %(spt_uri)s enclosureGroupUri is"
-                " inconsistent with server hardware %(server_hardware_uri)s"
-                " serverGroupUri." %
+                "Server profile template %(spt_uri)s enclosureGroupUri is "
+                "inconsistent with server hardware %(server_hardware_uri)s "
+                "serverGroupUri." %
                 {'spt_uri': server_profile_template.uri,
                  'server_hardware_uri': server_hardware.uri}
             )
@@ -806,8 +805,8 @@ class Client(BaseClient):
             if boot and boot.get('priority').lower() == 'primary':
                 return
         message = (
-            "No primary boot connection configured for server profile"
-            " template %s." % server_profile_template.uri
+            "No primary boot connection configured for server profile "
+            "template %s." % server_profile_template.uri
         )
         raise exceptions.OneViewInconsistentResource(message)
 
@@ -819,7 +818,7 @@ class Client(BaseClient):
 
         if server_profile_template.mac_type != 'Physical':
             message = (
-                "The server profile template %s is not set to use"
-                " physical MAC." % server_profile_template.uri
+                "The server profile template %s is not set to use "
+                "physical MAC." % server_profile_template.uri
             )
             raise exceptions.OneViewInconsistentResource(message)
