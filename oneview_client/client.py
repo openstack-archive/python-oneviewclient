@@ -284,7 +284,10 @@ class BaseClient(object):
     def get_sh_mac_from_ilo(self, server_hardware_uuid, nic_index=0):
         host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
         try:
-            return ilo_utils.get_mac_from_ilo(host_ip, ilo_token, nic_index)
+            return ilo_utils.get_mac_from_ilo(host_ip,
+                                              ilo_token,
+                                              nic_index,
+                                              self.allow_insecure_connections)
         finally:
             ilo_utils.ilo_logout(host_ip, ilo_token)
 
@@ -704,8 +707,8 @@ class Client(BaseClient):
 
         if (not is_mac_address_compatible) or len(ports) == 0:
             message = (
-                "The ports of the node are not compatible with its"
-                " server profile %(server_profile_uri)s." %
+                "The ports of the node are not compatible with its "
+                "server profile %(server_profile_uri)s." %
                 {'server_profile_uri': server_profile.uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
@@ -731,8 +734,8 @@ class Client(BaseClient):
 
         if (not is_mac_address_compatible) or len(ports) == 0:
             message = (
-                "The ports of the node are not compatible with its"
-                " server hardware %(server_hardware_uri)s." %
+                "The ports of the node are not compatible with its "
+                "server hardware %(server_hardware_uri)s." %
                 {'server_hardware_uri': server_hardware.uri}
             )
             raise exceptions.OneViewInconsistentResource(message)
@@ -761,9 +764,9 @@ class Client(BaseClient):
 
         if spt_server_hardware_type_uri != sh_server_hardware_type_uri:
             message = (
-                "Server profile template %(spt_uri)s serverHardwareTypeUri is"
-                " inconsistent with server hardware %(server_hardware_uri)s"
-                " serverHardwareTypeUri." %
+                "Server profile template %(spt_uri)s serverHardwareTypeUri is "
+                "inconsistent with server hardware %(server_hardware_uri)s "
+                "serverHardwareTypeUri." %
                 {'spt_uri': server_profile_template.uri,
                  'server_hardware_uri': server_hardware.uri}
             )
