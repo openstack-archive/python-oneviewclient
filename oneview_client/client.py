@@ -284,7 +284,10 @@ class BaseClient(object):
     def get_sh_mac_from_ilo(self, server_hardware_uuid, nic_index=0):
         host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
         try:
-            return ilo_utils.get_mac_from_ilo(host_ip, ilo_token, nic_index)
+            return ilo_utils.get_mac_from_ilo(host_ip,
+                                              ilo_token,
+                                              nic_index,
+                                              self.allow_insecure_connections)
         finally:
             ilo_utils.ilo_logout(host_ip, ilo_token)
 
