@@ -88,37 +88,26 @@ class BaseClient(object):
 
     @auditing.audit
     def _authenticate(self):
-        if self.manager_url in ("", None):
-            raise exceptions.OneViewConnectionError(
-                "Can't connect to OneView: 'manager_url' configuration"
-                "parameter is blank")
+        verify_ssl = self._get_verify_connection_option()
 
         url = '%s/rest/login-sessions' % self.manager_url
         body = {
             'userName': self.username,
             'password': self.password
         }
-        headers = {
-            'content-type': 'application/json'
-        }
+        headers = {'content-type': 'application/json'}
 
-        verify_ssl = self._get_verify_connection_option()
+        r = requests.post(
+            url, data=json.dumps(body), headers=headers, verify=verify_ssl)
 
-        r = requests.post(url,
-                          data=json.dumps(body),
-                          headers=headers,
-                          verify=verify_ssl)
         if r.status_code == 400:
             raise exceptions.OneViewNotAuthorizedException()
-        else:
-            return r
+
+        return r
 
     @auditing.audit
     def _logout(self):
-        if self.manager_url in ("", None):
-            raise exceptions.OneViewConnectionError(
-                "Can't connect to OneView: 'manager_url' configuration"
-                "parameter is blank")
+        verify_ssl = self._get_verify_connection_option()
 
         url = '%s/rest/login-sessions' % self.manager_url
         headers = {
@@ -126,16 +115,18 @@ class BaseClient(object):
             'Auth': self.session_id
         }
 
-        verify_ssl = self._get_verify_connection_option()
-
-        r = requests.delete(url,
-                            headers=headers,
-                            verify=verify_ssl)
+        r = requests.delete(url, headers=headers, verify=verify_ssl)
         if r.status_code == 400:
             raise exceptions.OneViewNotAuthorizedException()
 
     @auditing.audit
     def _get_verify_connection_option(self):
+        if not self.manager_url:
+            raise exceptions.OneViewConnectionError(
+                "Can't connect to OneView: 'manager_url' configuration "
+                "parameter is blank"
+            )
+
         verify_status = False
         user_cacert = self.tls_cacert_file
 
@@ -155,10 +146,13 @@ class BaseClient(object):
 
     @auditing.audit
     def _is_oneview_version_compatible(self):
-        versions = self.get_oneview_version()
-        v = SUPPORTED_ONEVIEW_VERSION
-        min_version_compatible = versions.get("minimumVersion") <= v
-        max_version_compatible = versions.get("currentVersion") >= v
+        version = self.get_oneview_version()
+
+        min_version_compatible = version.get(
+            "minimumVersion") <= SUPPORTED_ONEVIEW_VERSION
+        max_version_compatible = version.get(
+            "currentVersion") >= SUPPORTED_ONEVIEW_VERSION
+
         return min_version_compatible and max_version_compatible
 
     @auditing.audit
@@ -168,9 +162,7 @@ class BaseClient(object):
 
         verify_ssl = self._get_verify_connection_option()
 
-        response = requests.get(
-            url, headers=headers, verify=verify_ssl
-        )
+        response = requests.get(url, headers=headers, verify=verify_ssl)
         self._check_request_status(response, url)
         versions = response.json()
         return versions
@@ -260,16 +252,17 @@ class BaseClient(object):
                     raise exceptions.OneViewTaskError("%s - %s"
                                                       % (error_code, details))
             elif task_state.lower() == 'error':
-                raise exceptions.OneViewTaskError("The task '%s' returned an "
-                                                  "error state" % uri)
+                raise exceptions.OneViewTaskError(
+                    "The task '%s' returned an error state" % uri)
             return task
 
         return wait(task)
 
     @auditing.audit
     def _get_ilo_access(self, server_hardware_uuid):
-        uri = ("/rest/server-hardware/%s/remoteConsoleUrl"
-               % server_hardware_uuid)
+        uri = (
+            "/rest/server-hardware/%s/remoteConsoleUrl" % server_hardware_uuid
+        )
         json = self._prepare_and_do_request(uri)
         url = json.get("remoteConsoleUrl")
         ip_key = "addr="
@@ -284,10 +277,8 @@ class BaseClient(object):
     def get_sh_mac_from_ilo(self, server_hardware_uuid, nic_index=0):
         host_ip, ilo_token = self._get_ilo_access(server_hardware_uuid)
         try:
-            return ilo_utils.get_mac_from_ilo(host_ip,
-                                              ilo_token,
-                                              nic_index,
-                                              self.allow_insecure_connections)
+            return ilo_utils.get_mac_from_ilo(
+                host_ip, ilo_token, nic_index, self.allow_insecure_connections)
         finally:
             ilo_utils.ilo_logout(host_ip, ilo_token)
 
@@ -302,15 +293,14 @@ class BaseClient(object):
         }
         try:
             ilo_device = oneview_ilo_mapping[boot_device]
-            return ilo_utils.set_onetime_boot(host_ip, ilo_token,
-                                              ilo_device,
-                                              self.allow_insecure_connections)
+            return ilo_utils.set_onetime_boot(
+                host_ip, ilo_token, ilo_device, self.allow_insecure_connections
+            )
         except exceptions.IloException as e:
             raise e
         except KeyError as e:
             raise exceptions.IloException(
-                "Set one-time boot to %s is not supported." % boot_device
-            )
+                "Set one-time boot to %s is not supported." % boot_device)
         finally:
             ilo_utils.ilo_logout(host_ip, ilo_token)
 
@@ -345,12 +335,11 @@ class ClientV2(BaseClient):
             max_polling_attempts=20, audit_enabled=False,
             audit_map_file='', audit_output_file=''
     ):
-        super(ClientV2, self).__init__(manager_url, username, password,
-                                       allow_insecure_connections,
-                                       tls_cacert_file, max_polling_attempts,
-                                       audit_enabled, audit_map_file,
-                                       audit_output_file)
-
+        super(ClientV2, self).__init__(
+            manager_url, username, password, allow_insecure_connections,
+            tls_cacert_file, max_polling_attempts, audit_enabled,
+            audit_map_file, audit_output_file
+        )
         # Next generation
         self.enclosure = managers.EnclosureManager(self)
         self.enclosure_group = managers.EnclosureGroupManager(self)
@@ -370,52 +359,48 @@ class Client(BaseClient):
             max_polling_attempts=20, audit_enabled=False,
             audit_map_file='', audit_output_file=''
     ):
-        super(Client, self).__init__(manager_url, username, password,
-                                     allow_insecure_connections,
-                                     tls_cacert_file, max_polling_attempts,
-                                     audit_enabled, audit_map_file,
-                                     audit_output_file)
+        super(Client, self).__init__(
+            manager_url, username, password, allow_insecure_connections,
+            tls_cacert_file, max_polling_attempts, audit_enabled,
+            audit_map_file, audit_output_file
+        )
         # Next generation
         self._enclosure_group = managers.EnclosureGroupManager(self)
         self._server_hardware = managers.ServerHardwareManager(self)
+        self._server_profile = managers.ServerProfileManager(self)
         self._server_profile_template = managers.ServerProfileTemplateManager(
             self
         )
-        self._server_profile = managers.ServerProfileManager(self)
 
     # --- Power Driver ---
     @auditing.audit
-    def get_node_power_state(self, node_info):
-        return self.get_server_hardware(node_info).power_state
+    def get_node_power_state(self, oneview_info):
+        return self.get_server_hardware(oneview_info).power_state
 
     @auditing.audit
-    def power_on(self, node_info):
-        if self.get_node_power_state(node_info) == states.ONEVIEW_POWER_ON:
-            ret = states.ONEVIEW_POWER_ON
-        else:
-            ret = self.set_node_power_state(node_info, states.ONEVIEW_POWER_ON)
-        return ret
+    def power_on(self, oneview_info):
+        if self.get_node_power_state(oneview_info) == states.ONEVIEW_POWER_ON:
+            return states.ONEVIEW_POWER_ON
+        return self.set_node_power_state(oneview_info, states.ONEVIEW_POWER_ON)
 
     @auditing.audit
-    def power_off(self, node_info):
-        if self.get_node_power_state(node_info) == states.ONEVIEW_POWER_OFF:
-            ret = states.ONEVIEW_POWER_OFF
-        else:
-            ret = self.set_node_power_state(
-                node_info, states.ONEVIEW_POWER_OFF, PRESS_AND_HOLD
-            )
-        return ret
+    def power_off(self, oneview_info):
+        if self.get_node_power_state(oneview_info) == states.ONEVIEW_POWER_OFF:
+            return states.ONEVIEW_POWER_OFF
+        return self.set_node_power_state(
+            oneview_info, states.ONEVIEW_POWER_OFF, PRESS_AND_HOLD
+        )
 
     @auditing.audit
     def set_node_power_state(
-            self, node_info, state, press_type=MOMENTARY_PRESS
+            self, oneview_info, state, press_type=MOMENTARY_PRESS
     ):
         body = {'powerState': state, 'powerControl': press_type}
-        power_state_uri = (node_info.get('server_hardware_uri') +
-                           '/powerState')
+        power_state_uri = (
+            oneview_info.get('server_hardware_uri') + '/powerState')
         task = self._prepare_and_do_request(
-            uri=power_state_uri, body=body, request_type=PUT_REQUEST_TYPE
-        )
+            uri=power_state_uri, body=body, request_type=PUT_REQUEST_TYPE)
+
         try:
             self._wait_for_task_to_complete(task)
         except exceptions.OneViewTaskError as e:
@@ -425,8 +410,8 @@ class Client(BaseClient):
 
     # --- Management Driver ---
     @auditing.audit
-    def get_server_hardware(self, node_info):
-        uuid = node_info['server_hardware_uri'].split("/")[-1]
+    def get_server_hardware(self, oneview_info):
+        uuid = utils.get_uuid_from_uri(oneview_info['server_hardware_uri'])
         return self._server_hardware.get(uuid)
 
     @auditing.audit
@@ -434,24 +419,26 @@ class Client(BaseClient):
         return self._server_hardware.get(uuid)
 
     @auditing.audit
-    def get_server_profile_from_hardware(self, node_info):
-        server_hardware = self.get_server_hardware(node_info)
+    def get_server_profile_from_hardware(self, oneview_info):
+        server_hardware = self.get_server_hardware(oneview_info)
         server_profile_uri = server_hardware.server_profile_uri
 
-        if server_profile_uri is None:
+        if not server_profile_uri:
             message = (
-                "There is no server profile assigned to"
-                " %(server_hardware_uri)s" %
-                {'server_hardware_uri': node_info.get('server_hardware_uri')}
+                "There is no server profile assigned to "
+                "%(server_hardware)s" % {
+                    'server_hardware': oneview_info.get('server_hardware_uri')
+                }
             )
             raise exceptions.OneViewServerProfileAssociatedError(message)
 
-        server_profile_uuid = server_profile_uri.split("/")[-1]
+        server_profile_uuid = utils.get_uuid_from_uri(server_profile_uri)
         return self._server_profile.get(server_profile_uuid)
 
     @auditing.audit
-    def get_server_profile_template(self, node_info):
-        uuid = node_info['server_profile_template_uri'].split("/")[-1]
+    def get_server_profile_template(self, oneview_info):
+        uuid = utils.get_uuid_from_uri(
+            oneview_info['server_profile_template_uri'])
         return self._server_profile_template.get(uuid)
 
     @auditing.audit
@@ -463,48 +450,45 @@ class Client(BaseClient):
         return self._server_profile.get(uuid)
 
     @auditing.audit
-    def get_boot_order(self, node_info):
-        server_profile = self.get_server_profile_from_hardware(
-            node_info
-        )
+    def get_boot_order(self, oneview_info):
+        server_profile = self.get_server_profile_from_hardware(oneview_info)
         return server_profile.boot.get("order")
 
     @auditing.audit
-    def set_boot_device(self, node_info, new_primary_boot_device,
-                        onetime=False):
-        if new_primary_boot_device is None:
+    def set_boot_device(
+        self, oneview_info, new_primary_boot_device, onetime=False
+    ):
+        if not new_primary_boot_device:
             raise exceptions.OneViewBootDeviceInvalidError()
 
-        boot_order = self.get_boot_order(node_info)
+        boot_order = self.get_boot_order(oneview_info)
         if new_primary_boot_device == boot_order[0]:
             return
 
         if onetime:
             try:
                 sh_uuid = utils.get_uuid_from_uri(
-                    node_info['server_hardware_uri']
-                )
+                    oneview_info['server_hardware_uri'])
                 self._set_onetime_boot(sh_uuid, new_primary_boot_device)
                 return
             except exceptions.IloException:
                 # Falls back to persistent in case of failure
                 pass
 
-        self._persistent_set_boot_device(node_info, boot_order,
-                                         new_primary_boot_device)
+        self._persistent_set_boot_device(
+            oneview_info, boot_order, new_primary_boot_device)
 
     @auditing.audit
-    def _persistent_set_boot_device(self, node_info, boot_order,
-                                    new_primary_boot_device):
+    def _persistent_set_boot_device(
+        self, oneview_info, boot_order, new_primary_boot_device
+    ):
 
         if new_primary_boot_device in boot_order:
             boot_order.remove(new_primary_boot_device)
 
         boot_order.insert(0, new_primary_boot_device)
 
-        server_profile = self.get_server_profile_from_hardware(
-            node_info
-        )
+        server_profile = self.get_server_profile_from_hardware(oneview_info)
 
         manage_boot = server_profile.boot.get("manageBoot")
         server_profile.boot = {
@@ -515,7 +499,8 @@ class Client(BaseClient):
         boot_order_dict = server_profile.to_oneview_dict()
 
         task = self._prepare_and_do_request(
-            uri=server_profile.uri, body=boot_order_dict,
+            uri=server_profile.uri,
+            body=boot_order_dict,
             request_type=PUT_REQUEST_TYPE
         )
         try:
@@ -531,19 +516,13 @@ class Client(BaseClient):
                                  server_profile_template_uuid):
 
         if not server_profile_name:
-            raise ValueError(
-                'Missing Server Profile name.'
-            )
+            raise ValueError('Missing Server Profile name.')
 
         if not server_hardware_uuid:
-            raise ValueError(
-                'Missing Server Hardware uuid.'
-            )
+            raise ValueError('Missing Server Hardware uuid.')
 
         if not server_profile_template_uuid:
-            raise ValueError(
-                'Missing Server Profile Template uuid.'
-            )
+            raise ValueError('Missing Server Profile Template uuid.')
 
         server_hardware_uri = '%s%s' % (
             SERVER_HARDWARE_PREFIX_URI,
@@ -586,8 +565,8 @@ class Client(BaseClient):
             complete_task.get('associatedResource').get('resourceUri')
         )
 
-        uuid = server_profile_uri.split("/")[-1]
-        server_profile = self.get_server_profile_by_uuid(uuid)
+        server_profile_uuid = utils.get_uuid_from_uri(server_profile_uri)
+        server_profile = self.get_server_profile_by_uuid(server_profile_uuid)
 
         return server_profile
 
@@ -611,262 +590,10 @@ class Client(BaseClient):
 
     # ---- Node Validate ----
     @auditing.audit
-    def _get_switch_info_from_port(self, port):
-        local_link_connection = port.local_link_connection
-        if not local_link_connection:
-            raise exceptions.OneViewInconsistentResource(
-                "There must exist a local link connection information on "
-                "port for the node."
-            )
-        switch_info = local_link_connection.get('switch_info')
-        if not switch_info:
-            raise exceptions.OneViewInconsistentResource(
-                "There must exist a switch_info on local link connection "
-                "information."
-            )
-        try:
-            switch_info = json.loads(switch_info.replace("'", '"'))
-        except Exception:
-            raise exceptions.OneViewInconsistentResource(
-                "The switch_info information on port is not in a valid "
-                "format."
-            )
-        return switch_info
-
-    @auditing.audit
-    def _get_bootable_ports(self, ports, bootable):
-        bootable_ports = []
-        for port in ports:
-            switch_info = self._get_switch_info_from_port(port)
-            if switch_info.get('bootable').lower() == str(bootable).lower():
-                bootable_ports.append(port)
-        return bootable_ports
-
-    @auditing.audit
-    def _get_pxe_enabled_ports(self, ports):
-        return [port for port in ports if port.pxe_enabled]
-
-    @auditing.audit
-    def _validate_bootable_connections(self, ports):
-        number_bootable_ports = len(self._get_bootable_ports(ports, True))
-        if number_bootable_ports not in (1, 2):
-            raise exceptions.OneViewInconsistentResource(
-                "There must exist either one or two bootable ports for the "
-                "node. There is %d ports." % (number_bootable_ports)
-            )
-
-    @auditing.audit
-    def _validate_pxe_enabled_bootable_connections(self, ports):
-        bootable_ports = self._get_bootable_ports(ports, True)
-        pxe_enabled_ports = self._get_pxe_enabled_ports(bootable_ports)
-        if not pxe_enabled_ports:
-            raise exceptions.OneViewInconsistentResource(
-                "There must exist some bootable port whose pxe_enabled = True"
-            )
-
-    @auditing.audit
-    def _validate_pxe_disabled_not_bootable_connections(self, ports):
-        not_bootable_ports = self._get_bootable_ports(ports, False)
-        pxe_enabled_ports = self._get_pxe_enabled_ports(not_bootable_ports)
-        if pxe_enabled_ports:
-            raise exceptions.OneViewInconsistentResource(
-                "There cannot exist not bootable port whose pxe_enabled = True"
-            )
-
-    @auditing.audit
-    def _validate_node_and_port_server_hardware_uri(self, node_info, ports):
-        node_server_hardware_uuid = utils.get_uuid_from_uri(
-            node_info.get('server_hardware_uri')
-        )
-        for port in ports:
-            switch_info = self._get_switch_info_from_port(port)
-            port_sh_id = switch_info.get('server_hardware_id')
-            if port_sh_id.lower() != node_server_hardware_uuid.lower():
-                raise exceptions.OneViewInconsistentResource(
-                    "The Server Hardware URI of the port %(port_id)s "
-                    "doesn't match the Server Hardware URI of the node"
-                    " %(server_hardware)s" % {
-                        'port_id': port.uuid,
-                        'server_hardware': node_server_hardware_uuid
-                    }
-                )
-
-    @auditing.audit
-    def _validate_connection_mac(self, node_info, ports):
-        server_hardware = self.get_server_hardware(node_info)
-        for port in ports:
-            if port.address.lower() not in server_hardware.get_macs():
-                raise exceptions.OneViewInconsistentResource(
-                    "The MAC address %(mac)s of the port %(port_id)s doesn't"
-                    " have a corresponding MAC address in the Server Hardware"
-                    " %(server_hardware_uri)s" % {
-                        'mac': port.address,
-                        'port_id': port.uuid,
-                        'server_hardware_uri': server_hardware.uri
-                    }
-                )
-
-    @auditing.audit
-    def validate_connections(self, oneview_info, ports, network_interface):
-
-        if network_interface != 'neutron':
-            self._is_node_port_mac_compatible_with_server_hardware(
-                oneview_info, ports)
-            self._validate_server_profile_template_mac_type(oneview_info)
-        else:
-            if oneview_info.get('use_oneview_ml2_driver'):
-                self._validate_bootable_connections(ports)
-                self._validate_pxe_enabled_bootable_connections(ports)
-                self._validate_pxe_disabled_not_bootable_connections(ports)
-                self._validate_node_and_port_server_hardware_uri(
-                    oneview_info, ports)
-                self._validate_connection_mac(oneview_info, ports)
-            else:
-                self._validate_local_link_connection(ports)
-
-    def _validate_local_link_connection(self, ports):
-        for port in ports:
-            local_link_connection = port.local_link_connection
-            if not local_link_connection:
-                raise exceptions.OneViewInconsistentResource(
-                    "There must exist a local link connection information on "
-                    "port for the node."
-                )
-
-    @auditing.audit
-    def validate_node_server_hardware(
-            self, node_info, node_memorymb, node_cpus
-    ):
-        node_sh_uri = node_info.get('server_hardware_uri')
-        server_hardware = self.get_server_hardware(node_info)
-        if str(server_hardware.memory_mb) != str(node_memorymb):
-            message = (
-                "Node memory_mb is inconsistent with OneView's"
-                " server hardware %(server_hardware_uri)s memoryMb."
-                % {'server_hardware_uri': node_sh_uri}
-            )
-            raise exceptions.OneViewInconsistentResource(message)
-
-    @auditing.audit
-    def validate_node_server_hardware_type(self, node_info):
-        node_sht_uri = node_info.get('server_hardware_type_uri')
-        server_hardware = self.get_server_hardware(node_info)
-        server_hardware_sht_uri = server_hardware.server_hardware_type_uri
-
-        if server_hardware_sht_uri != node_sht_uri:
-            message = (
-                "Node server_hardware_type_uri is inconsistent"
-                " with OneView's server hardware %(server_hardware_uri)s"
-                " serverHardwareTypeUri." %
-                {'server_hardware_uri': node_info.get('server_hardware_uri')}
-            )
-            raise exceptions.OneViewInconsistentResource(message)
-
-    @auditing.audit
-    def check_server_profile_is_applied(self, node_info):
-        self.get_server_profile_from_hardware(node_info)
-
-    @auditing.audit
-    def validate_node_enclosure_group(self, node_info):
-        server_hardware = self.get_server_hardware(node_info)
-        sh_enclosure_group_uri = server_hardware.enclosure_group_uri
-        node_enclosure_group_uri = node_info.get('enclosure_group_uri')
-
-        if node_enclosure_group_uri not in ('', 'None', None):
-            if sh_enclosure_group_uri != node_enclosure_group_uri:
-                message = (
-                    "Node enclosure_group_uri '%(node_enclosure_group_uri)s' "
-                    "is inconsistent with OneView's server hardware "
-                    "serverGroupUri '%(sh_enclosure_group_uri)s' of "
-                    "ServerHardware %(server_hardware)s"
-                    % {
-                        'node_enclosure_group_uri': node_enclosure_group_uri,
-                        'sh_enclosure_group_uri': sh_enclosure_group_uri,
-                        'server_hardware': server_hardware.uuid,
-                    }
-                )
-                raise exceptions.OneViewInconsistentResource(message)
-
-    @auditing.audit
-    def is_node_port_mac_compatible_with_server_profile(
-            self, node_info, ports
-    ):
-        server_profile = self.get_server_profile_from_hardware(
-            node_info
-        )
-
-        if server_profile.connections:
-            primary_boot_connection = None
-
-            for connection in server_profile.connections:
-                boot = connection.get('boot')
-                if (boot is not None and
-                        boot.get('priority').lower() == 'primary'):
-                    primary_boot_connection = connection
-
-            if primary_boot_connection is None:
-                message = (
-                    "No primary boot connection configured for server profile"
-                    " %s." % server_profile.uri
-                )
-                raise exceptions.OneViewInconsistentResource(message)
-
-            mac = primary_boot_connection.get('mac')
-
-        else:
-            # If no connections on Server Profile, the connections are not
-            # being managed or the server is rack based. In both cases, fall
-            # back to 1st nic from iLO
-            server_hardware = self.get_server_hardware(node_info)
-            mac = self.get_sh_mac_from_ilo(server_hardware.uuid, nic_index=0)
-
-        is_mac_address_compatible = True
-        for port in ports:
-            port_address = port.__dict__.get('_obj_address')
-            if port_address is None:
-                port_address = port.__dict__.get('_address')
-            if port_address.lower() != mac.lower():
-                is_mac_address_compatible = False
-
-        if (not is_mac_address_compatible) or len(ports) == 0:
-            message = (
-                "The ports of the node are not compatible with its"
-                " server profile %(server_profile_uri)s." %
-                {'server_profile_uri': server_profile.uri}
-            )
-            raise exceptions.OneViewInconsistentResource(message)
-
-    @auditing.audit
-    def _is_node_port_mac_compatible_with_server_hardware(
-            self, node_info, ports
-    ):
-        server_hardware = self.get_server_hardware(node_info)
-        try:
-            mac = server_hardware.get_mac(nic_index=0)
-        except exceptions.OneViewException:
-            mac = self.get_sh_mac_from_ilo(server_hardware.uuid, nic_index=0)
-
-        is_mac_address_compatible = True
-        for port in ports:
-            port_address = port.__dict__.get('_obj_address')
-            if port_address is None:
-                port_address = port.__dict__.get('_address')
-
-            if port_address.lower() != mac:
-                is_mac_address_compatible = False
-
-        if (not is_mac_address_compatible) or len(ports) == 0:
-            message = (
-                "The ports of the node are not compatible with its"
-                " server hardware %(server_hardware_uri)s." %
-                {'server_hardware_uri': server_hardware.uri}
-            )
-            raise exceptions.OneViewInconsistentResource(message)
-
-    @auditing.audit
-    def validate_node_server_profile_template(self, node_info):
-        server_profile_template = self.get_server_profile_template(node_info)
-        server_hardware = self.get_server_hardware(node_info)
+    def validate_node_server_profile_template(self, oneview_info):
+        server_profile_template = self.get_server_profile_template(
+            oneview_info)
+        server_hardware = self.get_server_hardware(oneview_info)
 
         self._validate_spt_server_hardware_type(
             server_profile_template, server_hardware
@@ -881,17 +608,17 @@ class Client(BaseClient):
         self, server_profile_template, server_hardware
     ):
         spt_server_hardware_type_uri = (
-            server_profile_template.server_hardware_type_uri
-        )
+            server_profile_template.server_hardware_type_uri)
         sh_server_hardware_type_uri = server_hardware.server_hardware_type_uri
 
         if spt_server_hardware_type_uri != sh_server_hardware_type_uri:
             message = (
-                "Server profile template %(spt_uri)s serverHardwareTypeUri is"
-                " inconsistent with server hardware %(server_hardware_uri)s"
-                " serverHardwareTypeUri." %
-                {'spt_uri': server_profile_template.uri,
-                 'server_hardware_uri': server_hardware.uri}
+                "Server profile template %(spt_uri)s serverHardwareTypeUri is "
+                "inconsistent with server hardware %(server_hardware_uri)s "
+                "serverHardwareTypeUri." % {
+                    'spt_uri': server_profile_template.uri,
+                    'server_hardware_uri': server_hardware.uri
+                }
             )
             raise exceptions.OneViewInconsistentResource(message)
 
@@ -904,11 +631,12 @@ class Client(BaseClient):
 
         if spt_enclosure_group_uri != sh_enclosure_group_uri:
             message = (
-                "Server profile template %(spt_uri)s enclosureGroupUri is"
-                " inconsistent with server hardware %(server_hardware_uri)s"
-                " serverGroupUri." %
-                {'spt_uri': server_profile_template.uri,
-                 'server_hardware_uri': server_hardware.uri}
+                "Server profile template %(spt_uri)s enclosureGroupUri is "
+                "inconsistent with server hardware %(server_hardware_uri)s "
+                "serverGroupUri." % {
+                    'spt_uri': server_profile_template.uri,
+                    'server_hardware_uri': server_hardware.uri
+                }
             )
             raise exceptions.OneViewInconsistentResource(message)
 
@@ -924,6 +652,235 @@ class Client(BaseClient):
             raise exceptions.OneViewInconsistentResource(message)
 
     @auditing.audit
+    def validate_node_server_hardware_type(self, oneview_info):
+        node_server_hardware_type_uri = oneview_info.get(
+            'server_hardware_type_uri')
+        server_hardware = self.get_server_hardware(oneview_info)
+        server_hardware_type_uri = server_hardware.server_hardware_type_uri
+
+        if server_hardware_type_uri != node_server_hardware_type_uri:
+            message = (
+                "Node server_hardware_type_uri is inconsistent "
+                "with OneView's server hardware %(server_hardware)s "
+                "serverHardwareTypeUri." % {
+                    'server_hardware': oneview_info.get('server_hardware_uri')
+                }
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def validate_node_enclosure_group(self, oneview_info):
+        server_hardware = self.get_server_hardware(oneview_info)
+        sh_enclosure_group_uri = server_hardware.enclosure_group_uri
+        node_enclosure_group_uri = oneview_info.get('enclosure_group_uri')
+
+        if sh_enclosure_group_uri != node_enclosure_group_uri:
+            message = (
+                "Node enclosure_group_uri '%(node_enclosure_group_uri)s' "
+                "is inconsistent with OneView's server hardware "
+                "serverGroupUri '%(sh_enclosure_group_uri)s' of "
+                "Server Hardware: %(server_hardware)s" % {
+                    'node_enclosure_group_uri': node_enclosure_group_uri,
+                    'sh_enclosure_group_uri': sh_enclosure_group_uri,
+                    'server_hardware': server_hardware.uuid,
+                }
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def validate_node_server_hardware(
+        self, oneview_info, node_memory, node_cpus
+    ):
+        node_sh_uri = oneview_info.get('server_hardware_uri')
+        server_hardware = self.get_server_hardware(oneview_info)
+        if str(server_hardware.memory_mb) != str(node_memory):
+            message = (
+                "Node memory_mb is inconsistent with OneView's "
+                "server hardware %(server_hardware_uri)s memoryMb."
+                % {'server_hardware_uri': node_sh_uri}
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def validate_connections(self, oneview_info, ports, network_interface):
+        if network_interface != 'neutron':
+            self._validate_node_port_mac_compatible_with_server_hardware(
+                oneview_info, ports)
+            self._validate_server_profile_template_mac_type(oneview_info)
+        else:
+            if oneview_info.get('use_oneview_ml2_driver'):
+                self._validate_bootable_connections(ports)
+                self._validate_pxe_enabled_bootable_connections(ports)
+                self._validate_pxe_disabled_not_bootable_connections(ports)
+                self._validate_connection_mac(oneview_info, ports)
+                self._validate_node_and_port_server_hardware_uri(
+                    oneview_info, ports)
+            else:
+                self._validate_local_link_connection(ports)
+
+    @auditing.audit
+    def _validate_node_port_mac_compatible_with_server_hardware(
+            self, oneview_info, ports
+    ):
+        server_hardware = self.get_server_hardware(oneview_info)
+        try:
+            mac = server_hardware.get_mac(nic_index=0)
+        except exceptions.OneViewException:
+            mac = self.get_sh_mac_from_ilo(server_hardware.uuid, nic_index=0)
+
+        is_mac_address_compatible = True
+        for port in ports:
+            port_address = port.__dict__.get('_obj_address')
+            if not port_address:
+                port_address = port.__dict__.get('_address')
+
+            if port_address.lower() != mac:
+                is_mac_address_compatible = False
+
+        if not (is_mac_address_compatible and ports):
+            message = (
+                "The ports of the node are not compatible with its "
+                "server hardware %(server_hardware_uri)s." %
+                {'server_hardware_uri': server_hardware.uri}
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def _validate_server_profile_template_mac_type(self, oneview_info):
+        server_profile_template = self.get_server_profile_template(
+            oneview_info)
+
+        if server_profile_template.mac_type != 'Physical':
+            message = (
+                "The server profile template %s is not set to use "
+                "physical MAC." % server_profile_template.uri
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
+    @auditing.audit
+    def _validate_bootable_connections(self, ports):
+        number_bootable_ports = len(utils.get_bootable_ports(ports, True))
+        if number_bootable_ports not in (1, 2):
+            raise exceptions.OneViewInconsistentResource(
+                "There must exist either one or two bootable ports for the "
+                "node. There is %d ports." % (number_bootable_ports)
+            )
+
+    @auditing.audit
+    def _validate_pxe_enabled_bootable_connections(self, ports):
+        bootable_ports = utils.get_bootable_ports(ports, True)
+        pxe_enabled_ports = utils.get_pxe_enabled_ports(bootable_ports)
+        if not pxe_enabled_ports:
+            raise exceptions.OneViewInconsistentResource(
+                "There must exist some bootable port whose pxe_enabled = True"
+            )
+
+    @auditing.audit
+    def _validate_pxe_disabled_not_bootable_connections(self, ports):
+        not_bootable_ports = utils.get_bootable_ports(ports, False)
+        pxe_enabled_ports = utils.get_pxe_enabled_ports(not_bootable_ports)
+        if pxe_enabled_ports:
+            raise exceptions.OneViewInconsistentResource(
+                "There cannot exist not bootable port whose pxe_enabled = True"
+            )
+
+    @auditing.audit
+    def _validate_connection_mac(self, oneview_info, ports):
+        server_hardware = self.get_server_hardware(oneview_info)
+        for port in ports:
+            if port.address.lower() not in server_hardware.get_macs():
+                raise exceptions.OneViewInconsistentResource(
+                    "The MAC address %(mac)s of the port %(port_id)s doesn't "
+                    "have a corresponding MAC address in the Server Hardware "
+                    "%(server_hardware_uri)s" % {
+                        'mac': port.address,
+                        'port_id': port.uuid,
+                        'server_hardware_uri': server_hardware.uri
+                    }
+                )
+
+    @auditing.audit
+    def _validate_node_and_port_server_hardware_uri(self, oneview_info, ports):
+        node_server_hardware_uuid = utils.get_uuid_from_uri(
+            oneview_info.get('server_hardware_uri')
+        )
+        for port in ports:
+            switch_info = utils.get_switch_info_from_port(port)
+            port_sh_id = switch_info.get('server_hardware_id')
+            if port_sh_id.lower() != node_server_hardware_uuid.lower():
+                raise exceptions.OneViewInconsistentResource(
+                    "The Server Hardware URI of the port %(port_id)s "
+                    "must match the Server Hardware ID of the node "
+                    "%(server_hardware)s" % {
+                        'port_id': port.uuid,
+                        'server_hardware': node_server_hardware_uuid
+                    }
+                )
+
+    def _validate_local_link_connection(self, ports):
+        for port in ports:
+            local_link_connection = port.local_link_connection
+            if not local_link_connection:
+                raise exceptions.OneViewInconsistentResource(
+                    "There must exist a local link connection information on "
+                    "port for the node."
+                )
+
+    @auditing.audit
+    def check_server_profile_is_applied(self, oneview_info):
+        self.get_server_profile_from_hardware(oneview_info)
+
+    @auditing.audit
+    def is_node_port_mac_compatible_with_server_profile(
+            self, oneview_info, ports
+    ):
+        server_profile = self.get_server_profile_from_hardware(
+            oneview_info
+        )
+
+        if server_profile.connections:
+            primary_boot_connection = None
+
+            for connection in server_profile.connections:
+                boot = connection.get('boot')
+                if (boot is not None and
+                        boot.get('priority').lower() == 'primary'):
+                    primary_boot_connection = connection
+
+            if primary_boot_connection is None:
+                message = (
+                    "No primary boot connection configured for server profile "
+                    "%s." % server_profile.uri
+                )
+                raise exceptions.OneViewInconsistentResource(message)
+
+            mac = primary_boot_connection.get('mac')
+
+        else:
+            # If no connections on Server Profile, the connections are not
+            # being managed or the server is rack based. In both cases, fall
+            # back to 1st nic from iLO
+            server_hardware = self.get_server_hardware(oneview_info)
+            mac = self.get_sh_mac_from_ilo(server_hardware.uuid, nic_index=0)
+
+        is_mac_address_compatible = True
+        for port in ports:
+            port_address = port.__dict__.get('_obj_address')
+            if port_address is None:
+                port_address = port.__dict__.get('_address')
+            if port_address.lower() != mac.lower():
+                is_mac_address_compatible = False
+
+        if not (is_mac_address_compatible and ports):
+            message = (
+                "The ports of the node are not compatible with its "
+                "server profile %(server_profile_uri)s." %
+                {'server_profile_uri': server_profile.uri}
+            )
+            raise exceptions.OneViewInconsistentResource(message)
+
+    # NOTE(nicodemos): This validate is not being used
+    @auditing.audit
     def _validate_spt_boot_connections(self, server_profile_template):
         spt_connections = server_profile_template.connections
 
@@ -936,16 +893,3 @@ class Client(BaseClient):
             " template %s." % server_profile_template.uri
         )
         raise exceptions.OneViewInconsistentResource(message)
-
-    @auditing.audit
-    def _validate_server_profile_template_mac_type(self, oneview_info):
-        server_profile_template = self.get_server_profile_template(
-            oneview_info
-        )
-
-        if server_profile_template.mac_type != 'Physical':
-            message = (
-                "The server profile template %s is not set to use"
-                " physical MAC." % server_profile_template.uri
-            )
-            raise exceptions.OneViewInconsistentResource(message)
