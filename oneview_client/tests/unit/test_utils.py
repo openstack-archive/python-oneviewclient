@@ -17,6 +17,7 @@
 
 import unittest
 
+from oneview_client.tests import fixtures
 from oneview_client import utils
 
 
@@ -47,3 +48,46 @@ class UtilsTestCase(unittest.TestCase):
         prefix = '/rest/resource/'
         uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?'
         self.assertEqual(None, utils.get_uri_from_uuid(prefix, uuid))
+
+    def test__get_multiple_not_bootable_ports(self):
+        port1 = fixtures.TestablePort('AA:BB:CC:DD:EE:FA', bootable=False)
+        port2 = fixtures.TestablePort('AA:BB:CC:DD:EE:FB', bootable=True)
+        port3 = fixtures.TestablePort('AA:BB:CC:DD:EE:FC', bootable=False)
+        ports = [port1, port2, port3]
+        self.assertEqual(
+            [port1, port3], utils.get_bootable_ports(ports, False)
+        )
+
+    def test__get_empty_bootable_ports(self):
+        port = fixtures.TestablePort('AA:BB:CC:DD:EE', bootable=False)
+        ports = [port]
+        self.assertEqual([], utils.get_bootable_ports(ports, True))
+
+    def test__get_empty_not_bootable_ports(self):
+        port = fixtures.TestablePort('AA:BB:CC:DD:EE', bootable=True)
+        ports = [port]
+        self.assertEqual([], utils.get_bootable_ports(ports, False))
+
+    def test__get_multiple_bootable_ports(self):
+        port1 = fixtures.TestablePort('AA:BB:CC:DD:EE:FA', bootable=True)
+        port2 = fixtures.TestablePort('AA:BB:CC:DD:EE:FB', bootable=False)
+        port3 = fixtures.TestablePort('AA:BB:CC:DD:EE:FC', bootable=True)
+        ports = [port1, port2, port3]
+        self.assertEqual([port1, port3], utils.get_bootable_ports(ports, True))
+
+    def test__get_no_pxe_enabled_ports(self):
+        port = fixtures.TestablePort('AA:BB:CC:DD:EE:FF', pxe_enabled=False)
+        ports = [port]
+        self.assertEqual([], utils.get_pxe_enabled_ports(ports))
+
+    def test__get_pxe_enabled_ports(self):
+        port = fixtures.TestablePort('AA:BB:CC:DD:EE:FF', pxe_enabled=True)
+        ports = [port]
+        self.assertEqual(ports, utils.get_pxe_enabled_ports(ports))
+
+    def test__get_multiple_pxe_enabled_ports(self):
+        port1 = fixtures.TestablePort('AA:BB:CC:DD:EE:FA', pxe_enabled=True)
+        port2 = fixtures.TestablePort('AA:BB:CC:DD:EE:FB', pxe_enabled=False)
+        port3 = fixtures.TestablePort('AA:BB:CC:DD:EE:FC', pxe_enabled=True)
+        ports = [port1, port2, port3]
+        self.assertEqual([port1, port3], utils.get_pxe_enabled_ports(ports))

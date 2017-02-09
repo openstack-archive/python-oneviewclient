@@ -13,7 +13,10 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import json
 import re
+
+from oneview_client import exceptions
 
 UUID_PATTERN = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-" +\
     "[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
@@ -33,3 +36,38 @@ def get_uuid_from_uri(uri):
 def get_uri_from_uuid(resource_prefix, uuid):
     if uuid and _is_uuid_valid(uuid):
         return str(resource_prefix) + str(uuid)
+
+
+def get_bootable_ports(ports, bootable):
+    bootable_ports = []
+    for port in ports:
+        switch_info = get_switch_info_from_port(port)
+        if switch_info.get('bootable').lower() == str(bootable).lower():
+            bootable_ports.append(port)
+    return bootable_ports
+
+
+def get_switch_info_from_port(port):
+    local_link_connection = port.local_link_connection
+    if not local_link_connection:
+        raise exceptions.OneViewInconsistentResource(
+            "There must exist a local link connection information on "
+            "port for the node."
+        )
+    switch_info = local_link_connection.get('switch_info')
+    if not switch_info:
+        raise exceptions.OneViewInconsistentResource(
+            "There must exist a switch_info on local link connection "
+            "information."
+        )
+    try:
+        switch_info = json.loads(switch_info.replace("'", '"'))
+    except Exception:
+        raise exceptions.OneViewInconsistentResource(
+            "The switch_info information on port is not in a valid format."
+        )
+    return switch_info
+
+
+def get_pxe_enabled_ports(ports):
+    return [port for port in ports if port.pxe_enabled]
