@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-#
 # (c) Copyright 2015 Hewlett Packard Enterprise Development LP
 # Copyright 2015 Universidade Federal de Campina Grande
 #
@@ -27,7 +25,6 @@ from oneview_client import exceptions
 from oneview_client import ilo_utils
 from oneview_client import models
 from oneview_client.tests import fixtures
-from oneview_client import utils
 
 
 class OneViewClientAuthTestCase(unittest.TestCase):
@@ -575,14 +572,15 @@ class OneViewClientTestCase(unittest.TestCase):
         )
         mock_get.return_value = response
 
-        spt_uuid = utils.get_uuid_from_uri(
-            server_profile_template_virtual_mac.get("uri")
-        )
+        oneview_info = {
+            'server_profile_template_uri':
+                server_profile_template_virtual_mac.get("uri")
+        }
 
         self.assertRaises(
             exceptions.OneViewInconsistentResource,
-            oneview_client.validate_server_profile_template_mac_type,
-            spt_uuid
+            oneview_client._validate_server_profile_template_mac_type,
+            oneview_info
         )
 
     @mock.patch.object(requests, 'get', autospec=True)
@@ -603,11 +601,12 @@ class OneViewClientTestCase(unittest.TestCase):
         )
         mock_get.return_value = response
 
-        spt_uuid = utils.get_uuid_from_uri(
-            server_profile_template_physical_mac.get("uri")
-        )
+        oneview_info = {
+            'server_profile_template_uri':
+                server_profile_template_physical_mac.get("uri")
+        }
 
-        oneview_client.validate_server_profile_template_mac_type(spt_uuid)
+        oneview_client._validate_server_profile_template_mac_type(oneview_info)
 
 
 @mock.patch.object(client.ClientV2, '_authenticate', autospec=True)
@@ -927,7 +926,3 @@ class OneViewClientV2TestCase(unittest.TestCase):
             headers=mock.ANY,
             verify=True
         )
-
-
-if __name__ == '__main__':
-    unittest.main()
