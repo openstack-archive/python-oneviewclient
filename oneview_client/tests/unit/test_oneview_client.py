@@ -954,6 +954,22 @@ class OneViewClientTestCase(unittest.TestCase):
         setattr(profile_template_mock, "uri",
                 "/rest/server-profile-templates/%s" % '111-222-333')
 
+        stp_uuid = '111-222-333'
+
+        server_template_mock.return_value = profile_template_mock
+        self.oneview_client.validate_server_profile_template_mac_type(
+            stp_uuid
+        )
+
+    @mock.patch.object(client.Client, 'get_server_profile_template',
+                       autospec=True)
+    def test__validate_server_profile_template_mac_type(
+            self, server_template_mock):
+        profile_template_mock = models.ServerProfileTemplate()
+        setattr(profile_template_mock, "mac_type", "Physical")
+        setattr(profile_template_mock, "uri",
+                "/rest/server-profile-templates/%s" % '111-222-333')
+
         oneview_info = {'server_profile_template_uri': '/rest/111-222-333'}
 
         server_template_mock.return_value = profile_template_mock
@@ -963,7 +979,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
     @mock.patch.object(client.Client, 'get_server_profile_template',
                        autospec=True)
-    def test_validate_server_profile_template_mac_type_negative(
+    def test__validate_server_profile_template_mac_type_negative(
             self, server_template_mock):
         profile_template_mock = models.ServerProfileTemplate()
         setattr(profile_template_mock, "mac_type", "Virtual")

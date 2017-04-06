@@ -628,7 +628,7 @@ class Client(BaseClient):
         # NOTE(mrtenio): While the connection validation patch
         # is not accepted, we need to refer to the new validation.
         self._is_node_port_mac_compatible_with_server_hardware(
-            self, node_info, ports)
+            node_info, ports)
 
     @auditing.audit
     def _is_node_port_mac_compatible_with_server_hardware(
@@ -651,8 +651,9 @@ class Client(BaseClient):
         )
         raise exceptions.OneViewInconsistentResource(message)
 
-    def validate_server_profile_template_mac_type(self, oneview_info):
-        self._validate_server_profile_template_mac_type(self, oneview_info)
+    def validate_server_profile_template_mac_type(self, spt_uuid):
+        info = {"server_profile_template_uri": spt_uuid}
+        self._validate_server_profile_template_mac_type(info)
 
     @auditing.audit
     def _validate_server_profile_template_mac_type(self, oneview_info):
