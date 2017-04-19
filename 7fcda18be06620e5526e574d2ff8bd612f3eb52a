@@ -1,0 +1,9 @@
+Code-Review+2: Ricardo Araújo Santos <ricardo@lsd.ufcg.edu.br>
+Code-Review+2: Xavier <marcusrafael@lsd.ufcg.edu.br>
+Workflow+1: Xavier <marcusrafael@lsd.ufcg.edu.br>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 19 Apr 2017 12:00:37 +0000
+Reviewed-on: https://review.openstack.org/454245
+Project: openstack/python-oneviewclient
+Branch: refs/heads/master
