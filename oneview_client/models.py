@@ -84,9 +84,19 @@ class ServerHardware(OneViewObject):
 
     def get_mac(self, nic_index=0):
         if self.port_map:
-            device = self.port_map.get('deviceSlots')[0]
-            physical_port = device.get('physicalPorts')[nic_index]
-            return physical_port.get('mac', '').lower()
+            for device in self.port_map.get('deviceSlots'):
+                for physical_port in device.get('physicalPorts'):
+                    if physical_port.get('type') == 'Ethernet':
+                        sh_physical_port = physical_port
+                        break
+
+            if sh_physical_port:
+                for virtual_port in sh_physical_port.get('virtualPorts'):
+                    if virtual_port.get('portFunction') == 'a':
+                        return virtual_port.get('mac').lower()
+            else:
+                raise exceptions.OneViewException(
+                    "There is no Ethernet port on the Server Hardware")
         else:
             raise exceptions.OneViewException(
                 "There is no portMap on the Server Hardware requested. Is "

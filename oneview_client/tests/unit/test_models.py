@@ -139,13 +139,10 @@ class Test(unittest.TestCase):
         self.assertIsNone(sh.server_profile_uri)
         self.assertFalse(hasattr(sh, 'something_not_defined'))
         self.assertDictContainsSubset(
-            {'mpIpAddresses': [{
-                'address': '172.18.6.18',
-                'type': 'Undefined'
-                }]
-             },
-            sh.mp_host_info
-        )
+            {'mpIpAddresses': [
+                {'address': '172.18.6.18',
+                 'type': 'Undefined'}
+            ]}, sh.mp_host_info)
 
     def test_serverprofiletemplate_from_json(self):
         json = {
@@ -213,7 +210,10 @@ class Test(unittest.TestCase):
     def test_get_mac_from_server_hardware(self):
         server_hardware = models.ServerHardware()
         server_hardware.port_map = fixtures.PORT_MAP
-        self.assertEqual("d8:9d:67:73:54:00", server_hardware.get_mac())
+        sh_device_port = server_hardware.port_map.get('deviceSlots')[0]
+        sh_physical_port = sh_device_port.get('physicalPorts')[0]
+        sh_virtual_port = sh_physical_port.get('virtualPorts')[0]
 
-if __name__ == '__main__':
-    unittest.main()
+        self.assertEqual("ea:ef:c7:70:00:00", server_hardware.get_mac())
+        self.assertEqual("Ethernet", sh_physical_port.get('type'))
+        self.assertEqual("a", sh_virtual_port.get('portFunction'))
