@@ -729,7 +729,7 @@ class OneViewClientTestCase(unittest.TestCase):
 
         self.oneview_client._is_node_port_mac_compatible_with_server_hardware(
             {},
-            [type('obj', (object,), {'address': 'D8:9D:67:73:54:00'})]
+            [type('obj', (object,), {'address': 'EA:EF:C7:70:00:00'})]
         )
 
         mock_server_hardware.assert_called_once_with(self.oneview_client, {})

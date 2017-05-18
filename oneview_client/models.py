@@ -84,9 +84,22 @@ class ServerHardware(OneViewObject):
 
     def get_mac(self, nic_index=0):
         if self.port_map:
-            device = self.port_map.get('deviceSlots')[0]
-            physical_port = device.get('physicalPorts')[nic_index]
-            return physical_port.get('mac', '').lower()
+            try:
+                for device in self.port_map.get('deviceSlots'):
+                    for physical_port in device.get('physicalPorts'):
+                        if physical_port.get('type') == 'Ethernet':
+                            sh_physical_port = physical_port
+                            break
+                for virtual_port in sh_physical_port.get('virtualPorts'):
+                    # NOTE(nicodemos): Ironic oneview drivers needs to use a
+                    # port that type is Ethernet and function 'a' to be able
+                    # to make a deploy.
+                    if virtual_port.get('portFunction') == 'a':
+                        return virtual_port.get('mac').lower()
+            except Exception:
+                raise exceptions.OneViewException(
+                    "There is no Ethernet port on the Server Hardware: %s"
+                    % self.attribute_map.get('uri'))
         else:
             raise exceptions.OneViewException(
                 "There is no portMap on the Server Hardware requested. Is "
