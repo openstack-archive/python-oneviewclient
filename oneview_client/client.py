@@ -634,6 +634,8 @@ class Client(BaseClient):
     def _is_node_port_mac_compatible_with_server_hardware(
             self, node_info, ports
     ):
+        if not ports:
+            return
         server_hardware = self.get_server_hardware(node_info)
         try:
             mac = server_hardware.get_mac(nic_index=0)
