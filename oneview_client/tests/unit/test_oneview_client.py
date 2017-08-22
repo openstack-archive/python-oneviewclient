@@ -602,37 +602,6 @@ class OneViewClientTestCase(unittest.TestCase):
             self.oneview_client._validate_connection_mac(driver_info, ports)
 
     @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
-    def test_validate_node_server_hardware_inconsistent_memorymb_value(
-        self, mock_get_server_hardware
-    ):
-        server_hardware_mock = models.ServerHardware()
-        setattr(server_hardware_mock, "processor_core_count", 1)
-        setattr(server_hardware_mock, "processor_count", 1)
-        setattr(server_hardware_mock, "memory_mb", 1)
-
-        mock_get_server_hardware.return_value = server_hardware_mock
-
-        driver_info = {
-            "server_hardware_uri": "/any_uri",
-        }
-        node_memorymb = 2
-        node_cpus = 1
-
-        exc_expected_msg = (
-            "Node memory_mb is inconsistent with OneView's server"
-            " hardware /any_uri memoryMb."
-        )
-
-        self.assertRaisesRegexp(
-            exceptions.OneViewInconsistentResource,
-            exc_expected_msg,
-            self.oneview_client.validate_node_server_hardware,
-            driver_info,
-            node_memorymb,
-            node_cpus
-        )
-
-    @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
     def test_validate_node_server_hardware_type_inconsistent_sht_uri(
         self, mock_get_server_hardware
     ):
@@ -684,29 +653,6 @@ class OneViewClientTestCase(unittest.TestCase):
             exc_expected_msg,
             self.oneview_client.validate_node_enclosure_group,
             driver_info
-        )
-
-    @mock.patch.object(client.Client, 'get_server_hardware', autospec=True)
-    def test_validate_node_server_hardware_values_as_string(
-        self, mock_get_server_hardware
-    ):
-        server_hardware_mock = models.ServerHardware()
-        setattr(server_hardware_mock, "processor_core_count", 2)
-        setattr(server_hardware_mock, "processor_count", 3)
-        setattr(server_hardware_mock, "memory_mb", 1)
-
-        mock_get_server_hardware.return_value = server_hardware_mock
-
-        driver_info = {
-            "server_hardware_uri": "/any_uri",
-            "enclosure_group_uri": "/inconsistent_uri"
-        }
-        node_memorymb = '1'
-        node_cpus = '6'
-
-        self.assertIsNone(
-            self.oneview_client.validate_node_server_hardware(
-                driver_info, node_memorymb, node_cpus)
         )
 
     @mock.patch.object(client.Client, 'get_server_hardware_by_uuid',
