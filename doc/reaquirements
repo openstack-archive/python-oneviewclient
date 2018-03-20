@@ -1,0 +1,2 @@
+phinx!=1.6.1,>=1.5.1 # BSD
+oslosphinx>=4.7.0 # Apache-2.0
