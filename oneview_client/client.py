@@ -14,12 +14,13 @@
 #    limitations under the License.
 
 import abc
-import json
 import six
 import time
 
 import requests
 import retrying
+
+from oslo_serialization import jsonutils
 
 from oneview_client import auditing
 from oneview_client import exceptions
@@ -105,7 +106,7 @@ class BaseClient(object):
         verify_ssl = self._get_verify_connection_option()
 
         r = requests.post(url,
-                          data=json.dumps(body),
+                          data=jsonutils.dumps(body),
                           headers=headers,
                           verify=verify_ssl)
         if r.status_code == 400:
@@ -190,7 +191,7 @@ class BaseClient(object):
                 'Auth': self.session_id
             }
             url = '%s%s' % (self.manager_url, uri)
-            body = json.dumps(body)
+            body = jsonutils.dumps(body)
             try:
                 response = self._do_request(url, headers, body, request_type)
             except exceptions.OneViewNotAuthorizedException:

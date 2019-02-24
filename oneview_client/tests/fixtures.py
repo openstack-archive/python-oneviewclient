@@ -13,7 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import json
+from oslo_serialization import jsonutils
 
 SERVER_HARDWARE_JSON = {
     "type": "server-hardware-1",
@@ -5058,7 +5058,7 @@ SERVER_PROFILE_LIST_JSON = {
     "uri": "/rest/server-profiles"
 }
 
-INDEX_SERVER_HARDWARE_LIST_JSON = json.loads("""{
+INDEX_SERVER_HARDWARE_LIST_JSON = jsonutils.loads("""{
     "type": "IndexPaginatedCollectionV4",
     "category": "resources",
     "members": [{
@@ -6513,7 +6513,7 @@ INDEX_SERVER_HARDWARE_LIST_JSON = json.loads("""{
     "eTag": null
 }""")
 
-INDEX_SERVER_HARDWARE_JSON = json.loads("""{
+INDEX_SERVER_HARDWARE_JSON = jsonutils.loads("""{
     "type": "IndexPaginatedCollectionV4",
     "category": "resources",
     "members": [{

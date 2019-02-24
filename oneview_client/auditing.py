@@ -15,9 +15,10 @@
 #    under the License.
 
 import datetime
-import json
 import requests
 import sys
+
+from oslo_serialization import jsonutils
 
 from six.moves import configparser
 
@@ -71,5 +72,5 @@ def _log(cls, method, ret, initial_time, end_time, client_instance_id,
                 is_oneview_request=is_oneview_request)
 
     with open(cls.audit_output_file, 'a') as output:
-        json.dump(data, output)
+        jsonutils.dump(data, output)
         output.write('\n')
