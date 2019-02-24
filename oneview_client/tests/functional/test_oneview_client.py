@@ -14,11 +14,12 @@
 #    limitations under the License.
 
 import copy
-import json
 import mock
 import requests
 import six.moves.http_client as http_client
 import unittest
+
+from oslo_serialization import jsonutils
 
 from oneview_client import client
 from oneview_client import exceptions
@@ -69,7 +70,7 @@ class OneViewClientAuthTestCase(unittest.TestCase):
         oneview_client.server_hardware.get(sh_uuid)
         mock_post.assert_called_once_with(
             'https://1.2.3.4/rest/login-sessions',
-            data=json.dumps({"userName": "user", "password": "password"}),
+            data=jsonutils.dumps({"userName": "user", "password": "password"}),
             headers={'content-type': 'application/json'},
             verify=True
         )
@@ -545,8 +546,8 @@ class OneViewClientTestCase(unittest.TestCase):
         oneview_client.set_boot_device(node_info, 'HardDisk', onetime=True)
         mock_patch.assert_called_once_with(
             'https://' + my_host + '/rest/v1/Systems/1',
-            data=json.dumps({"Boot": {"BootSourceOverrideTarget": "Hdd",
-                                      "BootSourceOverrideEnabled": "Once"}}),
+            data=jsonutils.dumps({"Boot": {"BootSourceOverrideTarget": "Hdd",
+                                           "BootSourceOverrideEnabled": "Once"}}),
             headers={
                 'Content-Type': 'application/json',
                 'X-Auth-Token': key},

@@ -14,13 +14,14 @@
 #    limitations under the License.
 
 import copy
-import json
 
 import mock
 import requests
 import retrying
 import six.moves.http_client as http_client
 import unittest
+
+from oslo_serialization import jsonutils
 
 from oneview_client import client
 from oneview_client import exceptions
@@ -53,7 +54,7 @@ class OneViewClientAuthTestCase(unittest.TestCase):
         )
         mock_post.assert_called_once_with(
             'https://1.2.3.4/rest/login-sessions',
-            data=json.dumps({"userName": "user", "password": "password"}),
+            data=jsonutils.dumps({"userName": "user", "password": "password"}),
             headers={'content-type': 'application/json'},
             verify=True
         )
@@ -68,7 +69,7 @@ class OneViewClientAuthTestCase(unittest.TestCase):
         )
         mock_post.assert_called_once_with(
             'https://1.2.3.4/rest/login-sessions',
-            data=json.dumps({"userName": "user", "password": "password"}),
+            data=jsonutils.dumps({"userName": "user", "password": "password"}),
             headers={'content-type': 'application/json'},
             verify=False
         )

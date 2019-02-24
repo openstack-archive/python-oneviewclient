@@ -13,8 +13,9 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import json
 import requests
+
+from oslo_serialization import jsonutils
 
 from oneview_client import exceptions
 
@@ -42,7 +43,7 @@ def rest_op(operation, host, suburi, request_headers, request_body,
         return_value = (response.status_code, response.headers,
                         response.json())
     elif operation == "PATCH":
-        response = requests.patch(url, data=json.dumps(request_body),
+        response = requests.patch(url, data=jsonutils.dumps(request_body),
                                   headers=request_headers, verify=enforce_SSL)
         return_value = (response.status_code, response.headers,
                         response.json())
