@@ -1,7 +1,0 @@
-[run]
-branch = True
-source = python-oneviewclient
-omit = python-oneviewclient/openstack/*
-
-[report]
-ignore_errors = True
